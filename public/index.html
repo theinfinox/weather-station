@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ESP8266 Weather Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; margin: 20px; }
+    canvas { max-width: 600px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h2>Weather Dashboard</h2>
+  <p>Temp: <span id="temp">--</span> °C | Hum: <span id="hum">--</span> %</p>
+  <canvas id="chart" width="600" height="300"></canvas>
+
+  <script>
+    const ctx = document.getElementById('chart').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          { label: 'Temp °C', borderColor: 'red', data: [], yAxisID: 'y1' },
+          { label: 'Humidity %', borderColor: 'blue', data: [], yAxisID: 'y2' }
+        ]
+      },
+      options: {
+        animation: false,
+        scales: {
+          y1: { type: 'linear', position: 'left' },
+          y2: { type: 'linear', position: 'right' }
+        }
+      }
+    });
+
+    async function refresh() {
+      const res = await fetch('/api/update');
+      const data = await res.json();
+      document.getElementById('temp').textContent = data.t.toFixed(1);
+      document.getElementById('hum').textContent = data.h.toFixed(1);
+      const time = new Date(data.time).toLocaleTimeString();
+      chart.data.labels.push(time);
+      chart.data.datasets[0].data.push(data.t);
+      chart.data.datasets[1].data.push(data.h);
+      if (chart.data.labels.length > 20) {
+        chart.data.labels.shift();
+        chart.data.datasets[0].data.shift();
+        chart.data.datasets[1].data.shift();
+      }
+      chart.update();
+    }
+
+    setInterval(refresh, 2000); // update every 2s
+    refresh();
+  </script>
+</body>
+</html>
