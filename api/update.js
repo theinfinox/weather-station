@@ -1,21 +1,18 @@
-let latest = { t: 0, h: 0, time: new Date().toISOString() };
+let logs = [];
 
 export default async function handler(req, res) {
   if (req.method === "POST") {
     try {
-      const body = await req.json();
-      latest = { 
-        t: parseFloat(body.temp), 
-        h: parseFloat(body.hum), 
-        time: new Date().toISOString() 
-      };
-      return res.status(200).json({ status: "ok" });
-    } catch (err) {
+      const data = await req.json();
+      logs = logs.concat(data);
+      if (logs.length > 288) logs = logs.slice(-288);
+      return res.status(200).json({ stored: logs.length });
+    } catch (e) {
       return res.status(400).json({ error: "invalid data" });
     }
-  } else if (req.method === "GET") {
-    return res.status(200).json(latest);
-  } else {
-    return res.status(405).end();
   }
+  if (req.method === "GET") {
+    return res.status(200).json(logs);
+  }
+  res.status(405).end();
 }

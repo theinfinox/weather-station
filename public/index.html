@@ -1,59 +1,86 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>ESP8266 Weather Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; text-align: center; margin: 20px; }
-    canvas { max-width: 600px; margin-top: 20px; }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Weather Station</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body {
+  font-family: 'Inter', sans-serif;
+  background: #fafafa;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0; padding: 20px;
+  color: #333;
+}
+h2 { font-weight: 500; margin-bottom: 10px; }
+#stats {
+  display: flex; gap: 20px; margin-bottom: 20px;
+  font-size: 1.2rem;
+}
+.value {
+  padding: 8px 16px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 0 8px rgba(0,0,0,0.05);
+  transition: all 0.3s ease;
+}
+canvas {
+  max-width: 400px; 
+  max-height: 220px;
+}
+</style>
 </head>
 <body>
-  <h2>Weather Dashboard</h2>
-  <p>Temp: <span id="temp">--</span> °C | Hum: <span id="hum">--</span> %</p>
-  <canvas id="chart" width="600" height="300"></canvas>
+  <h2>🌤️ Weather Dashboard</h2>
+  <div id="stats">
+    <div class="value" id="temp">-- °C</div>
+    <div class="value" id="hum">-- %</div>
+  </div>
+  <canvas id="chart"></canvas>
 
-  <script>
-    const ctx = document.getElementById('chart').getContext('2d');
-    const chart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: [],
-        datasets: [
-          { label: 'Temp °C', borderColor: 'red', data: [], yAxisID: 'y1' },
-          { label: 'Humidity %', borderColor: 'blue', data: [], yAxisID: 'y2' }
-        ]
-      },
-      options: {
-        animation: false,
-        scales: {
-          y1: { type: 'linear', position: 'left' },
-          y2: { type: 'linear', position: 'right' }
-        }
-      }
-    });
+<script>
+const chart = new Chart(document.getElementById('chart'), {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [
+      { label: 'Temp °C', data: [], borderColor: '#f87171', fill: false, tension: 0.3 },
+      { label: 'Humidity %', data: [], borderColor: '#60a5fa', fill: false, tension: 0.3 }
+    ]
+  },
+  options: {
+    responsive: true,
+    animation: { duration: 400 },
+    scales: { y: { beginAtZero: true } },
+    plugins: { legend: { display: false } }
+  }
+});
 
-    async function refresh() {
-      const res = await fetch('/api/update');
-      const data = await res.json();
-      document.getElementById('temp').textContent = data.t.toFixed(1);
-      document.getElementById('hum').textContent = data.h.toFixed(1);
-      const time = new Date(data.time).toLocaleTimeString();
-      chart.data.labels.push(time);
-      chart.data.datasets[0].data.push(data.t);
-      chart.data.datasets[1].data.push(data.h);
-      if (chart.data.labels.length > 20) {
-        chart.data.labels.shift();
-        chart.data.datasets[0].data.shift();
-        chart.data.datasets[1].data.shift();
-      }
-      chart.update();
+async function fetchData() {
+  try {
+    const res = await fetch('/api/data');
+    const d = await res.json();
+    const time = new Date().toLocaleTimeString();
+    document.getElementById('temp').textContent = `${d.t.toFixed(1)} °C`;
+    document.getElementById('hum').textContent = `${d.h.toFixed(1)} %`;
+    chart.data.labels.push(time);
+    chart.data.datasets[0].data.push(d.t);
+    chart.data.datasets[1].data.push(d.h);
+    if (chart.data.labels.length > 20) {
+      chart.data.labels.shift();
+      chart.data.datasets[0].data.shift();
+      chart.data.datasets[1].data.shift();
     }
-
-    setInterval(refresh, 2000); // update every 2s
-    refresh();
-  </script>
+    chart.update();
+  } catch (e) {
+    console.log("Fetch error", e);
+  }
+}
+setInterval(fetchData, 2000);
+fetchData();
+</script>
 </body>
 </html>
