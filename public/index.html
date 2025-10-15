@@ -38,78 +38,104 @@
       </div>
     </div>
 
-    <canvas id="chart"></canvas>
-  </div>
-
+<canvas id="chart"></canvas>
 <script>
-const maxPoints = 288; // align with device buffer
+const maxPoints = 288; // keep device buffer alignment
 const ctx = document.getElementById('chart').getContext('2d');
 const chart = new Chart(ctx, {
   type: 'line',
   data: {
     labels: [],
     datasets: [
-      { label: 'Temp °C', data: [], borderColor: '#fb7185', tension: 0.35, pointRadius: 0, borderWidth: 2 },
-      { label: 'Humidity %', data: [], borderColor: '#60a5fa', tension: 0.35, pointRadius: 0, borderWidth: 2, yAxisID: 'y1' }
+      { 
+        label: 'Temperature (°C)', 
+        data: [], 
+        borderColor: '#fb7185', 
+        tension: 0.35, 
+        pointRadius: 2, 
+        borderWidth: 2, 
+        yAxisID: 'y' 
+      },
+      { 
+        label: 'Humidity (%)', 
+        data: [], 
+        borderColor: '#60a5fa', 
+        tension: 0.35, 
+        pointRadius: 2, 
+        borderWidth: 2, 
+        yAxisID: 'y1' 
+      }
     ]
   },
   options: {
     responsive: true,
     animation: { duration: 600, easing: 'easeOutCubic' },
-    scales: {
-      x: { display:true },
-      y: { position:'left', beginAtZero:false },
-      y1: { position:'right', beginAtZero:false, grid: { drawOnChartArea:false } }
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: true, position: 'bottom', labels: { color: '#e6eef8' } },
+      tooltip: {
+        mode: 'index',
+        intersect: false,
+        callbacks: {
+          label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}`
+        }
+      }
     },
-    plugins: { legend: { display:false } }
+    scales: {
+      x: { 
+        display: true, 
+        ticks: { color: '#e6eef8' },
+        grid: { color: 'rgba(255,255,255,0.05)' }
+      },
+      y: { 
+        position: 'left', 
+        beginAtZero: false, 
+        ticks: { color: '#fb7185' }, 
+        grid: { color: 'rgba(255,255,255,0.1)' } 
+      },
+      y1: { 
+        position: 'right', 
+        beginAtZero: false, 
+        ticks: { color: '#60a5fa' }, 
+        grid: { drawOnChartArea: false } 
+      }
+    }
   }
 });
 
-async function loadHistory(){
-  try {
-    const r = await fetch('/api/history');
-    if (!r.ok) return;
-    const hist = await r.json();
-    chart.data.labels = hist.map(h => new Date(h.time).toLocaleTimeString());
-    chart.data.datasets[0].data = hist.map(h => h.t);
-    chart.data.datasets[1].data = hist.map(h => h.h);
-    trim();
-    chart.update();
-  } catch(e){ console.warn(e) }
-}
-
-function trim(){
-  while(chart.data.labels.length > maxPoints){
+function trim() {
+  while(chart.data.labels.length > maxPoints) {
     chart.data.labels.shift();
     chart.data.datasets.forEach(ds => ds.data.shift());
   }
 }
 
-async function refresh(){
+async function refresh() {
   try {
     const r = await fetch('/api/update');
     if (!r.ok) throw 0;
     const d = await r.json();
+
+    // update top cards
     document.getElementById('temp').textContent = d.t.toFixed(1) + ' °C';
     document.getElementById('hum').textContent = d.h.toFixed(1) + ' %';
-    document.getElementById('updated').textContent = 'Updated: ' + new Date(d.time).toLocaleString();
-    // append
+    document.getElementById('updated').textContent = 'Updated: ' + new Date(d.time).toLocaleTimeString();
+
+    // push to chart
     chart.data.labels.push(new Date(d.time).toLocaleTimeString());
     chart.data.datasets[0].data.push(d.t);
     chart.data.datasets[1].data.push(d.h);
     trim();
     chart.update();
-  } catch(e){
+  } catch(e) {
     document.getElementById('updated').textContent = 'Offline / no live update';
   }
 }
 
-(async function init(){
-  await loadHistory();
-  await refresh();
-  setInterval(refresh, 2000); // live poll
-  setInterval(loadHistory, 5*60*1000); // refresh history every 5m
+(async function init() {
+  setInterval(refresh, 2000); // live poll every 2s
 })();
 </script>
+
 </body>
 </html>
