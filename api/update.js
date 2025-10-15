@@ -1,24 +1,20 @@
-// api/update.js
-let last = { t: 0, h: 0, time: new Date().toISOString() };
+// project/api/update.js
 
-export default async function handler(req, res) {
-  if (req.method === "POST") {
+let latest = { t: 0, h: 0, time: Date.now() };
+
+export default function handler(req, res) {
+  if (req.method === 'POST') {
     try {
-      const body = await req.json();
-      // accept either {t,h} or {temp,hum}
-      const t = typeof body.t === 'number' ? body.t : parseFloat(body.temp);
-      const h = typeof body.h === 'number' ? body.h : parseFloat(body.hum);
-      if (Number.isFinite(t) && Number.isFinite(h)) {
-        last = { t, h, time: new Date().toISOString() };
+      const { t, h } = req.body;
+      if (typeof t === 'number' && typeof h === 'number') {
+        latest = { t, h, time: Date.now() };
         return res.status(200).json({ success: true });
       }
-      return res.status(400).json({ error: "invalid payload" });
+      return res.status(400).json({ error: 'Invalid payload' });
     } catch (e) {
-      return res.status(400).json({ error: "invalid json" });
+      return res.status(400).json({ error: 'Bad request' });
     }
-  }
-  if (req.method === "GET") {
-    return res.status(200).json(last);
-  }
-  res.status(405).end();
+  } 
+  // GET request
+  return res.status(200).json(latest);
 }
