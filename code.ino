@@ -1,0 +1,151 @@
+
+#define BLYNK_TEMPLATE_ID "TMPL3uJXE43xc"
+#define BLYNK_TEMPLATE_NAME "weather"
+#define BLYNK_AUTH_TOKEN "sH4tpASBtrraaKt3Ouxxq0CJvKhUlLjk"
+
+char ssid[] = "esp";
+char pass[] = "esp12345";
+
+#include <ESP8266WiFi.h>
+#include <BlynkSimpleEsp8266.h>
+#include <ESP8266WebServer.h>
+#include <ESP8266mDNS.h>
+#include <WebSocketsServer.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <DHT.h>
+
+#define DHTPIN D4
+#define DHTTYPE DHT11
+#define OLED_ADDR 0x3C
+#define UPDATE_INTERVAL 1000
+
+DHT dht(DHTPIN, DHTTYPE);
+Adafruit_SSD1306 display(128, 64, &Wire);
+ESP8266WebServer server(80);
+WebSocketsServer webSocket(81);     // websocket on port 81
+BlynkTimer timer;
+
+float t = 0, h = 0;
+bool mdnsStarted = false;
+
+// ---- Web page with Chart.js ----
+const char HTML_PAGE[] PROGMEM = R"rawliteral(
+<!DOCTYPE html><html><head>
+<meta charset='UTF-8'>
+<meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>Weather Station</title>
+<script src='https://cdn.jsdelivr.net/npm/chart.js'></script>
+</head><body style='font-family:sans-serif;text-align:center'>
+<h2>Weather Station</h2>
+<canvas id='chart' width='350' height='200'></canvas>
+<p>Temp: <span id='temp'>--</span> °C &nbsp; | &nbsp; Hum: <span id='hum'>--</span> %</p>
+<script>
+const ws = new WebSocket('ws://' + location.hostname + ':81/');
+let chart = new Chart(document.getElementById('chart').getContext('2d'), {
+  type:'line',
+  data:{labels:[],datasets:[
+    {label:'Temp °C',borderColor:'red',data:[],yAxisID:'y1'},
+    {label:'Hum %',borderColor:'blue',data:[],yAxisID:'y2'}
+  ]},
+  options:{animation:false,scales:{y1:{type:'linear',position:'left'},y2:{type:'linear',position:'right'}}}
+});
+ws.onmessage = e=>{
+  let d = JSON.parse(e.data);
+  document.getElementById('temp').textContent=d.t.toFixed(1);
+  document.getElementById('hum').textContent=d.h.toFixed(1);
+  let time = new Date().toLocaleTimeString();
+  chart.data.labels.push(time);
+  chart.data.datasets[0].data.push(d.t);
+  chart.data.datasets[1].data.push(d.h);
+  if(chart.data.labels.length>20){
+    chart.data.labels.shift();
+    chart.data.datasets[0].data.shift();
+    chart.data.datasets[1].data.shift();
+  }
+  chart.update();
+};
+</script></body></html>
+)rawliteral";
+
+// ---- Handlers ----
+void handleRoot() { 
+  server.sendHeader("Content-Type", "text/html; charset=utf-8");
+  server.send_P(200, "text/html", HTML_PAGE);
+  }
+void handleJson() {
+  String json = "{\"t\":" + String(t,1) + ",\"h\":" + String(h,1) + "}";
+  server.send(200, "application/json", json);
+}
+
+// ---- Core logic ----
+void readSensor() {
+  float newH = dht.readHumidity();
+  float newT = dht.readTemperature();
+  if (!isnan(newH) && !isnan(newT)) {
+    h = newH; t = newT;
+    Blynk.virtualWrite(V0, t);
+    Blynk.virtualWrite(V1, h);
+    // push to websocket clients
+    String msg = "{\"t\":" + String(t,1) + ",\"h\":" + String(h,1) + "}";
+    webSocket.broadcastTXT(msg);
+  }
+}
+
+void showOLED() {
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.print("Weather Station");
+  display.drawLine(0, 10, 127, 10, SSD1306_WHITE);
+  display.setTextSize(2);
+  display.setCursor(0, 20);
+  display.printf("%.1fC", t);
+  display.setTextSize(1);
+  display.setCursor(0, 48);
+  display.printf("Humidity: %.0f%%", h);
+  display.display();
+}
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin(D2, D1);
+  display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR);
+  dht.begin();
+
+  WiFi.begin(ssid, pass);
+  Serial.print("Connecting to WiFi");
+  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
+  Serial.println("\nConnected, IP: " + WiFi.localIP().toString());
+
+  Blynk.config(BLYNK_AUTH_TOKEN);
+  Blynk.connect();
+
+  server.on("/", handleRoot);
+  server.on("/json", handleJson);
+  server.begin();
+  webSocket.begin();
+  webSocket.onEvent([](uint8_t, WStype_t, uint8_t*, size_t){});
+
+  if (MDNS.begin("weather")) {
+    mdnsStarted = true;
+    MDNS.addService("http", "tcp", 80);
+    MDNS.addService("ws", "tcp", 81);
+    Serial.println("mDNS running: http://weather.local");
+  }
+
+  timer.setInterval(UPDATE_INTERVAL, []() {
+    readSensor();
+    showOLED();
+  });
+}
+
+void loop() {
+  Blynk.run();
+  timer.run();
+  server.handleClient();
+  webSocket.loop();
+  if (mdnsStarted) MDNS.update();
+}
