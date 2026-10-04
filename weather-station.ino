@@ -62,7 +62,7 @@ void checkButton();
 // Calibration for Soil Moisture (0-1023 ADC)
 // When probe is unplugged, NodeMCU internal divider pulls A0 down near 0 (<35 counts)
 const int DISCONNECTED_THRESHOLD = 35;
-const int DRY_VAL = 850;
+const int DRY_VAL = 1024;
 const int WET_VAL = 350;
 
 DHT dht(DHTPIN, DHTTYPE);
@@ -78,15 +78,11 @@ int moisture = -1;
 bool probeConnected = false;
 String mood = "searching";
 String statusMsg = "Sensor Not Connected ⚠️";
-int petCount = 0;
 bool mdnsStarted = false;
 
 // Display & Animation State
 enum DisplayMode { MODE_FACE, MODE_DIAGNOSTIC };
 DisplayMode currentMode = MODE_FACE;
-unsigned long heartStartTime = 0;
-bool showHeart = false;
-bool pendingSync = false;
 EyeEmotion currentEmotion = EMOTION_NEUTRAL;
 
 // Non-blocking Timer Tracking (Zero external timer dependencies)
@@ -97,7 +93,6 @@ unsigned long lastVercelSync = -60000; // Trigger an immediate sync on boot!
 // Button Debounce State
 bool lastButtonState = HIGH;
 unsigned long buttonPressStart = 0;
-bool longPressTriggered = false;
 
 // ---- Local Embedded Web Page (PROGMEM) ----
 BearSSL::WiFiClientSecure* secureClient = nullptr;
@@ -170,8 +165,7 @@ void handleJson() {
                 ",\"connected\":" + (probeConnected ? "true" : "false") +
                 ",\"raw\":" + String(rawMoist) +
                 ",\"mood\":\"" + mood + "\"" +
-                ",\"status\":\"" + statusMsg + "\"" +
-                ",\"pets\":" + String(petCount) + "}";
+                ",\"status\":\"" + statusMsg + "\"}";
   server.send(200, "application/json", json);
 }
 
@@ -199,40 +193,31 @@ void drawFace() {
 
   EyeEmotion targetEmotion = EMOTION_NEUTRAL;
 
-  // 1. Determine the appropriate emotion based on state
-  if (showHeart && (millis() - heartStartTime < 3500)) {
-    targetEmotion = EMOTION_LOVE;
+  // Determine the appropriate emotion based on plant physiological state
+  if (!probeConnected) {
+    targetEmotion = EMOTION_CURIOUS; // Searching for probe
+  } else if (mood == "thirsty") {
+    targetEmotion = EMOTION_SAD; // Needs hydration
+  } else if (mood == "dizzy") {
+    targetEmotion = EMOTION_SCARED; // Overwatered
   } else {
-    showHeart = false; // Animation window finished
-    
-    if (!probeConnected) {
-      targetEmotion = EMOTION_CURIOUS; // Looking/searching for the probe
-    } else if (mood == "thirsty") {
-      targetEmotion = EMOTION_SAD; // Sad because it needs water
-    } else if (mood == "dizzy") {
-      targetEmotion = EMOTION_SCARED; // Panicking because it's drowning
-    } else {
-      targetEmotion = EMOTION_NEUTRAL; // Optimal conditions
-    }
+    targetEmotion = EMOTION_NEUTRAL; // Optimal conditions
   }
 
-  // 2. Apply emotion smoothly when it changes
+  // Apply emotion smoothly when it changes
   if (currentEmotion != targetEmotion) {
     currentEmotion = targetEmotion;
     eyes.setEmotionWithTransition(targetEmotion, 400); // 400ms smooth morph
   }
 
-  // 3. Render the animated eyes
+  // Render the animated eyes
   eyes.update();
 
-  // 4. Render context-aware text
+  // Render context-aware text
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
   
-  if (showHeart) {
-    display.setCursor(22, 54);
-    display.print("I LOVE YOU! <3");
-  } else if (!probeConnected) {
+  if (!probeConnected) {
     display.setCursor(6, 52);
     display.print("PLUG SENSOR INTO A0");
   } else if (mood == "thirsty") {
@@ -256,28 +241,28 @@ void drawDiagnostics() {
   display.setTextColor(SSD1306_WHITE);
   display.setTextSize(1);
   display.setCursor(0, 0);
-  display.print("FLORI");
-  display.setCursor(50, 0);
-  display.print(probeConnected ? "[SENSOR OK]" : "[NO SENSOR]");
-  display.drawLine(0, 10, 127, 10, SSD1306_WHITE);
+  display.print("FLORI DIAGNOSTICS");
+  display.drawLine(0, 9, 127, 9, SSD1306_WHITE);
 
-  display.setCursor(0, 16);
+  display.setCursor(0, 13);
   if (probeConnected) {
-    display.printf("Soil Moist: %d%%", moisture);
-    display.setCursor(95, 16);
-    display.print(moisture < 35 ? "[DRY]" : (moisture > 75 ? "[WET]" : "[OK]"));
+    display.printf("Soil Moist: %d%% %s", moisture, (moisture < 25 ? "[DRY]" : (moisture > 75 ? "[WET]" : "[OK]")));
   } else {
-    display.print("Soil Moist: NOT CONNECTED");
+    display.print("Soil Moist: [DISCONNECTED]");
   }
 
-  display.setCursor(0, 28);
+  display.setCursor(0, 25);
   display.printf("Air Temp  : %.1f C", t);
 
-  display.setCursor(0, 40);
+  display.setCursor(0, 37);
   display.printf("Air Humid : %.0f %%", h);
 
-  display.setCursor(0, 52);
-  display.printf("A0:%d | %s", rawMoist, WiFi.status() == WL_CONNECTED ? "WIFI" : "OFFLINE");
+  display.setCursor(0, 49);
+  if (WiFi.status() == WL_CONNECTED) {
+    display.printf("IP: %s", WiFi.localIP().toString().c_str());
+  } else {
+    display.printf("A0: %d [OFFLINE]", rawMoist);
+  }
 
   display.display();
 }
@@ -297,8 +282,7 @@ void syncWithVercel() {
                        ",\"m\":" + String(moisture) + 
                        ",\"probeConnected\":" + (probeConnected ? "true" : "false") +
                        ",\"mood\":\"" + mood + "\"" +
-                       ",\"status\":\"" + statusMsg + "\"" +
-                       ",\"pets\":" + String(petCount) + "}";
+                       ",\"status\":\"" + statusMsg + "\"}";
 
       int httpCode = https.POST(payload);
       if (httpCode > 0) {
@@ -355,40 +339,23 @@ void readSensors() {
                ",\"connected\":" + (probeConnected ? "true" : "false") +
                ",\"raw\":" + String(rawMoist) +
                ",\"mood\":\"" + mood + "\"" + 
-               ",\"status\":\"" + statusMsg + "\"" +
-               ",\"pets\":" + String(petCount) + "}";
+               ",\"status\":\"" + statusMsg + "\"}";
   webSocket.broadcastTXT(msg);
 }
 
-// ---- Interactive Button Handling (Debounced) ----
+// ---- Interactive Button Handling (Debounced Mode Toggle) ----
 void checkButton() {
   bool btnState = digitalRead(BUTTON_PIN);
 
   if (btnState == LOW && lastButtonState == HIGH) {
     buttonPressStart = millis();
-    longPressTriggered = false;
   }
 
-  if (btnState == LOW && !longPressTriggered) {
-    if (millis() - buttonPressStart > 1000) {
-      currentMode = (currentMode == MODE_FACE) ? MODE_DIAGNOSTIC : MODE_FACE;
-      longPressTriggered = true;
-    }
-  }
-
+  // Toggle between Emotive Face & Engineering Diagnostics on button press
   if (btnState == HIGH && lastButtonState == LOW) {
-    if (!longPressTriggered && (millis() - buttonPressStart > 40)) {
-      heartStartTime = millis();
-      showHeart = true;
-      petCount++;
-      currentMode = MODE_FACE;
-      eyes.playWinkLeft(); // Give a cute wink when petted!
-      
-      String petMsg = "{\"action\":\"pet\",\"pets\":" + String(petCount) + "}";
-      webSocket.broadcastTXT(petMsg);
-      
-      // Defer Vercel sync so the HTTP blocking doesn't stutter the heart animation
-      pendingSync = true;
+    if (millis() - buttonPressStart > 50) {
+      currentMode = (currentMode == MODE_FACE) ? MODE_DIAGNOSTIC : MODE_FACE;
+      Serial.printf("[Mode] Toggled to %s\n", (currentMode == MODE_FACE ? "Face View" : "Diagnostic View"));
     }
   }
 
@@ -407,7 +374,7 @@ void setup() {
   // Initialize Global SSL Client to prevent heap fragmentation
   secureClient = new BearSSL::WiFiClientSecure();
   secureClient->setInsecure();
-  secureClient->setTimeout(3000);
+  secureClient->setTimeout(8000);
 
   display.clearDisplay();
   display.setTextColor(SSD1306_WHITE);
@@ -491,7 +458,7 @@ void loop() {
     }
   }
 
-  if (now - lastSensorTime >= 1000) {
+  if (now - lastSensorTime >= 2500) {
     lastSensorTime = now;
     readSensors();
   }
@@ -500,12 +467,5 @@ void loop() {
   if (now - lastVercelSync >= 60000) {
     lastVercelSync = now;
     syncWithVercel();
-  }
-
-  // If a pet occurred, wait until the heart animation finishes before syncing
-  if (pendingSync && !showHeart) {
-    syncWithVercel();
-    pendingSync = false;
-    lastVercelSync = now; // Reset background timer
   }
 }
