@@ -23,19 +23,35 @@ export default function handler(req, res) {
         return res.status(200).json({ success: true, pets: latest.pets, mood: latest.mood });
       }
 
-      const { t, h, m, mood, status, pets } = body;
+      const { t, h, m, mood, status, pets, probeConnected } = body;
+      const isConnected = probeConnected !== false && m !== -1 && typeof m === 'number' && m >= 0;
+
       if (typeof t === 'number' && typeof h === 'number') {
+        const currentM = isConnected ? Number(m) : -1;
+        let currentMood = mood;
+        let currentStatus = status;
+
+        if (!isConnected) {
+          currentMood = currentMood || 'searching';
+          currentStatus = 'Sensor Not Connected ⚠️';
+        } else {
+          currentMood = currentMood || (currentM < 35 ? 'thirsty' : currentM > 75 ? 'dizzy' : 'happy');
+          currentStatus = currentStatus || (currentM < 35 ? 'Thirsty! 🪣' : currentM > 75 ? 'Too Wet! 🌊' : 'Optimal 🌿');
+        }
+
         latest = {
           t: Number(t),
           h: Number(h),
-          m: typeof m === 'number' ? Number(m) : latest.m,
-          mood: mood || (m < 35 ? 'thirsty' : m > 75 ? 'dizzy' : 'happy'),
-          status: status || (m < 35 ? 'Thirsty! 🪣' : m > 75 ? 'Too Wet! 🌊' : 'Optimal 🌿'),
+          m: currentM,
+          probeConnected: isConnected,
+          mood: currentMood,
+          status: currentStatus,
           pets: typeof pets === 'number' ? pets : latest.pets,
           time: Date.now()
         };
         return res.status(200).json({ success: true, data: latest });
       }
+
       return res.status(400).json({ error: 'Invalid payload: t and h numbers required' });
     } catch (e) {
       return res.status(400).json({ error: 'Bad request' });

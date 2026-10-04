@@ -193,6 +193,18 @@
       animation: dizzySpin 2s infinite linear;
     }
 
+    /* Searching / Disconnected Sensor */
+    .mood-searching .eye {
+      background: #f59e0b;
+      box-shadow: 0 0 20px #f59e0b;
+      border-radius: 50%;
+      animation: searchScan 2s infinite ease-in-out;
+    }
+    @keyframes searchScan {
+      0%, 100% { transform: translateX(-6px); }
+      50% { transform: translateX(6px); }
+    }
+
     /* Loved / Petted (Heart Eyes) */
     .mood-loved .eye {
       background: var(--pink);
@@ -625,8 +637,11 @@
       const faceCard = document.getElementById('faceCard');
       const speech = document.getElementById('plantMessage');
 
-      faceCard.classList.remove('mood-thirsty', 'mood-dizzy', 'mood-loved');
-      if (mood === 'thirsty') {
+      faceCard.classList.remove('mood-thirsty', 'mood-dizzy', 'mood-loved', 'mood-searching');
+      if (mood === 'searching') {
+        faceCard.classList.add('mood-searching');
+        speech.textContent = customMsg || "Soil probe not connected! Plug sensor into pin A0. 🔌";
+      } else if (mood === 'thirsty') {
         faceCard.classList.add('mood-thirsty');
         speech.textContent = customMsg || "I'm parched! Soil is dry... please water me! 🪣";
       } else if (mood === 'dizzy') {
@@ -641,11 +656,13 @@
     }
 
     // Health Score Algorithm
-    function calculateVitality(m, t, h) {
+    function calculateVitality(m, t, h, isConnected) {
       let score = 100;
-      // Moisture ideal: 40-70%
-      if (m < 35) score -= (35 - m) * 1.5;
-      else if (m > 75) score -= (m - 75) * 1.5;
+      // If moisture sensor is connected, evaluate soil moisture
+      if (isConnected && m >= 0) {
+        if (m < 35) score -= (35 - m) * 1.5;
+        else if (m > 75) score -= (m - 75) * 1.5;
+      }
 
       // Temp ideal: 20-29 C
       if (t < 18) score -= (18 - t) * 2;
@@ -667,8 +684,9 @@
 
         const t = Number(data.t || 24);
         const h = Number(data.h || 55);
-        const m = Number(data.m || 50);
-        const mood = data.mood || (m < 35 ? 'thirsty' : m > 75 ? 'dizzy' : 'happy');
+        const isProbeConnected = (data.probeConnected !== false && data.connected !== false && data.m !== -1 && data.m !== null && data.m >= 0);
+        const m = isProbeConnected ? Number(data.m) : -1;
+        const mood = isProbeConnected ? (data.mood || (m < 35 ? 'thirsty' : m > 75 ? 'dizzy' : 'happy')) : 'searching';
         const timeStr = new Date(data.time).toLocaleTimeString();
 
         // Update Nav & Status
@@ -677,9 +695,23 @@
         document.getElementById('lastUpdated').textContent = `Latest Reading: ${timeStr} • Synchronized with ESP8266`;
 
         // Update Metric Cards
-        document.getElementById('valMoist').textContent = `${m.toFixed(0)}%`;
-        document.getElementById('fillMoist').style.width = `${Math.min(100, m)}%`;
-        document.getElementById('tagMoist').textContent = m < 35 ? '⚠️ Dry Soil' : m > 75 ? '🌊 Overwatered' : '🌿 Optimal Range';
+        const valMoist = document.getElementById('valMoist');
+        const tagMoist = document.getElementById('tagMoist');
+        const fillMoist = document.getElementById('fillMoist');
+
+        if (!isProbeConnected) {
+          valMoist.textContent = 'NO SENSOR';
+          valMoist.style.fontSize = '1.35rem';
+          fillMoist.style.width = '0%';
+          tagMoist.className = 'pill-tag tag-coral';
+          tagMoist.textContent = '⚠️ Probe Disconnected';
+        } else {
+          valMoist.textContent = `${m.toFixed(0)}%`;
+          valMoist.style.fontSize = '2.1rem';
+          fillMoist.style.width = `${Math.min(100, m)}%`;
+          tagMoist.className = 'pill-tag tag-emerald';
+          tagMoist.textContent = m < 35 ? '⚠️ Dry Soil' : m > 75 ? '🌊 Overwatered' : '🌿 Optimal Range';
+        }
 
         document.getElementById('valTemp').textContent = `${t.toFixed(1)}°C`;
         document.getElementById('fillTemp').style.width = `${Math.min(100, (t / 45) * 100)}%`;
@@ -690,10 +722,10 @@
         document.getElementById('tagHum').textContent = h < 35 ? 'Arid Air' : h > 75 ? 'Very Humid' : 'Balanced Vapor';
 
         // Vitality Score
-        const health = calculateVitality(m, t, h);
+        const health = calculateVitality(m, t, h, isProbeConnected);
         document.getElementById('valHealth').textContent = `${health}/100`;
         document.getElementById('fillHealth').style.width = `${health}%`;
-        document.getElementById('tagHealth').textContent = health > 80 ? '🌟 Thriving' : health > 50 ? '🌿 Stable' : '⚠️ Needs Care';
+        document.getElementById('tagHealth').textContent = isProbeConnected ? (health > 80 ? '🌟 Thriving' : health > 50 ? '🌿 Stable' : '⚠️ Needs Care') : 'Air Monitored';
 
         // Pet Count
         if (typeof data.pets === 'number') {
@@ -706,7 +738,7 @@
 
         // Chart Update
         chart.data.labels.push(timeStr);
-        chart.data.datasets[0].data.push(m);
+        chart.data.datasets[0].data.push(isProbeConnected ? m : null);
         chart.data.datasets[1].data.push(t);
         chart.data.datasets[2].data.push(h);
 
@@ -715,6 +747,7 @@
           chart.data.datasets.forEach(ds => ds.data.shift());
         }
         chart.update();
+
 
       } catch (err) {
         document.getElementById('connStatus').textContent = 'Waiting for ESP8266...';
