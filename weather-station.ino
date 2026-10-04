@@ -46,7 +46,7 @@ void handleJson();
 void drawWifiIcon(int x, int y);
 void drawFace();
 void drawDiagnostics();
-void syncWithVercel();
+bool syncWithVercel();
 void readSensors();
 void checkButton();
 
@@ -93,9 +93,6 @@ unsigned long lastVercelSync = -60000; // Trigger an immediate sync on boot!
 // Button Debounce State
 bool lastButtonState = HIGH;
 unsigned long buttonPressStart = 0;
-
-// ---- Local Embedded Web Page (PROGMEM) ----
-BearSSL::WiFiClientSecure* secureClient = nullptr;
 
 const char HTML_PAGE[] PROGMEM = R"rawliteral(
 <!DOCTYPE html><html><head>
@@ -267,32 +264,67 @@ void drawDiagnostics() {
   display.display();
 }
 
-// ---- Vercel Cloud Sync Routine (Direct HTTPS POST) ----
-void syncWithVercel() {
-  if (WiFi.status() == WL_CONNECTED && strlen(vercelUrl) > 12) {
-    if (!secureClient) return; // Safety check
+// ---- Industrial-Grade Vercel Cloud Sync Routine ----
+bool syncWithVercel() {
+  if (WiFi.status() != WL_CONNECTED || strlen(vercelUrl) < 12) {
+    Serial.println(F("[Vercel] Skipped: WiFi offline"));
+    return false;
+  }
+
+  // Ensure an IP address is allocated before hitting network
+  if (WiFi.localIP() == IPAddress(0, 0, 0, 0)) {
+    Serial.println(F("[Vercel] Skipped: No IP address assigned"));
+    return false;
+  }
+
+  String payload = "{\"t\":" + String(t, 1) + 
+                   ",\"h\":" + String(h, 1) + 
+                   ",\"m\":" + String(moisture) + 
+                   ",\"probeConnected\":" + (probeConnected ? "true" : "false") +
+                   ",\"mood\":\"" + mood + "\"" +
+                   ",\"status\":\"" + statusMsg + "\"}";
+
+  // Two-stage retry loop (1 primary attempt + 1 automatic failover retry)
+  for (int attempt = 1; attempt <= 2; attempt++) {
+    BearSSL::WiFiClientSecure client;
+    client.setInsecure(); // Bypass CA verification for serverless endpoints
+    client.setTimeout(8000); // 8-second SSL timeout
+    
+    // CRITICAL: Restrict buffer sizes to 1024 RX / 512 TX.
+    // Saves over 30KB of contiguous heap, preventing malloc() NULL crashes!
+    client.setBufferSizes(1024, 512);
 
     HTTPClient https;
-    if (https.begin(*secureClient, vercelUrl)) {
-      https.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS); // REQUIRED for Vercel 308 Redirects
+    if (https.begin(client, vercelUrl)) {
+      https.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
       https.addHeader("Content-Type", "application/json");
-
-      String payload = "{\"t\":" + String(t, 1) + 
-                       ",\"h\":" + String(h, 1) + 
-                       ",\"m\":" + String(moisture) + 
-                       ",\"probeConnected\":" + (probeConnected ? "true" : "false") +
-                       ",\"mood\":\"" + mood + "\"" +
-                       ",\"status\":\"" + statusMsg + "\"}";
+      https.addHeader("User-Agent", "ESP8266-Flori/1.0");
+      https.addHeader("Connection", "close"); // Avoid socket hangs on edge proxy
 
       int httpCode = https.POST(payload);
-      if (httpCode > 0) {
-        Serial.printf("[Vercel] Sync Success: HTTP %d\n", httpCode);
+      
+      if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_CREATED) {
+        Serial.printf("[Vercel] Sync Success: HTTP %d (Free Heap: %d bytes)\n", httpCode, ESP.getFreeHeap());
+        https.end();
+        client.stop();
+        return true;
+      } else if (httpCode > 0) {
+        Serial.printf("[Vercel] Server Response: HTTP %d (attempt %d/2)\n", httpCode, attempt);
       } else {
-        Serial.printf("[Vercel] Sync Failed: %s\n", https.errorToString(httpCode).c_str());
+        Serial.printf("[Vercel] Transport Error: %s (attempt %d/2)\n", https.errorToString(httpCode).c_str(), attempt);
       }
       https.end();
+    } else {
+      Serial.printf("[Vercel] Failed to initialize HTTP client (attempt %d/2)\n", attempt);
+    }
+    client.stop();
+
+    if (attempt < 2) {
+      delay(1500); // Wait 1.5s before retry
     }
   }
+
+  return false;
 }
 
 // ---- Core Logic: Read Sensors & Classify Mood ----
@@ -371,10 +403,8 @@ void setup() {
   display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR);
   dht.begin();
 
-  // Initialize Global SSL Client to prevent heap fragmentation
-  secureClient = new BearSSL::WiFiClientSecure();
-  secureClient->setInsecure();
-  secureClient->setTimeout(8000);
+  // Disable WiFi sleep mode to guarantee maximum packet transmission reliability
+  WiFi.setSleepMode(WIFI_NONE_SLEEP);
 
   display.clearDisplay();
   display.setTextColor(SSD1306_WHITE);
@@ -429,6 +459,8 @@ void setup() {
   webSocket.begin();
 
   readSensors();
+  syncWithVercel(); // Trigger immediate sync on boot
+  lastVercelSync = millis();
 }
 
 // ---- Main Non-Blocking Loop ----
@@ -463,8 +495,8 @@ void loop() {
     readSensors();
   }
 
-  // Sync with Vercel every 60 seconds (instead of 3s) to prevent blocking main loop
-  if (now - lastVercelSync >= 60000) {
+  // Sync with Vercel every 20 seconds (instead of 60s)
+  if (now - lastVercelSync >= 20000) {
     lastVercelSync = now;
     syncWithVercel();
   }
