@@ -795,6 +795,12 @@
         const res = await fetch('/api/update');
         if (!res.ok) throw new Error('API offline');
         const data = await res.json();
+        
+        if (data.waiting) {
+            document.getElementById('connStatus').textContent = 'Waiting for ESP8266 to push live data...';
+            document.getElementById('liveDot').style.background = 'var(--amber)';
+            return;
+        }
 
         const t = Number(data.t || 24);
         const h = Number(data.h || 55);

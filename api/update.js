@@ -1,14 +1,6 @@
 // project/api/update.js
 
-let latest = {
-  t: 24.0,
-  h: 60.0,
-  m: 52.0,
-  mood: 'happy',
-  status: 'Optimal 🌿',
-  pets: 0,
-  time: Date.now()
-};
+let latest = null;
 
 export default function handler(req, res) {
   if (req.method === 'POST') {
@@ -17,6 +9,7 @@ export default function handler(req, res) {
 
       // Virtual Pet action from web dashboard
       if (body.action === 'pet') {
+        if (!latest) latest = {};
         latest.pets = (latest.pets || 0) + 1;
         latest.mood = 'loved';
         latest.time = Date.now();
@@ -59,6 +52,10 @@ export default function handler(req, res) {
   } 
 
   // GET request
+  if (!latest) {
+    return res.status(200).json({ waiting: true });
+  }
+
   // Reset transient 'loved' mood back to physiological state after 8 seconds
   if (latest.mood === 'loved' && Date.now() - latest.time > 8000) {
     latest.mood = latest.m < 35 ? 'thirsty' : latest.m > 75 ? 'dizzy' : 'happy';
