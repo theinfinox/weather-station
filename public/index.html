@@ -390,11 +390,30 @@
     }
 
     @media (max-width: 640px) {
-      .container { width: 95vw; margin-top: 14px; gap: 14px; }
-      .screen-bezel { height: 120px; }
+      .container { width: 96vw; margin-top: 12px; gap: 16px; }
+      
+      .nav-bar { flex-direction: column; gap: 14px; padding: 16px; }
+      .brand { justify-content: center; }
+      .nav-actions { width: 100%; justify-content: center; gap: 10px; }
+      
+      .face-card { padding: 20px 16px; }
+      .screen-bezel { height: 120px; width: 100%; }
       .eye { width: 42px; height: 52px; }
-      .eyes-container { gap: 36px; }
-      .chart-wrap { height: 260px; }
+      .eyes-container { gap: 32px; }
+      
+      .speech-bubble { font-size: 0.9rem; padding: 10px 14px; width: 100%; justify-content: center; }
+      
+      .metrics-grid { gap: 14px; }
+      
+      .chart-card { padding: 16px; }
+      .chart-head { flex-direction: column; align-items: flex-start; gap: 4px; }
+      .chart-wrap { height: 280px; }
+    }
+
+    @media (max-width: 400px) {
+      .nav-actions { flex-direction: column; }
+      .btn-link, .status-pill { width: 100%; justify-content: center; text-align: center; }
+      .metrics-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -419,13 +438,8 @@
 
     <!-- Interactive Robo-Face Card -->
     <section class="face-card" id="faceCard">
-      <div class="screen-bezel">
-        <div class="eyes-container" id="eyesGroup">
-          <div class="eye left"></div>
-          <div class="eye right"></div>
-        </div>
-        <div class="tear left-tear"></div>
-        <div class="tear right-tear"></div>
+      <div class="screen-bezel" style="background: #050505; display:flex; justify-content:center; align-items:center;">
+        <canvas id="oledCanvas" width="128" height="64" style="width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated;"></canvas>
       </div>
 
       <div class="speech-bubble" id="speechText">
@@ -608,20 +622,9 @@
       }
     });
 
-    // Blinking Routine
-    function triggerBlink() {
-      if (isBlinking) return;
-      isBlinking = true;
-      document.querySelectorAll('.eye').forEach(el => el.classList.add('blink'));
-      setTimeout(() => {
-        document.querySelectorAll('.eye').forEach(el => el.classList.remove('blink'));
-        isBlinking = false;
-      }, 180);
-    }
-    setInterval(triggerBlink, 3800);
-
     // Virtual Pet Action
     async function petFlori() {
+      oledEyes.playWink(); // Trigger wink immediately on Vercel site
       try {
         localPets++;
         document.getElementById('petCounterText').textContent = `Petted ${localPets} times today`;
@@ -636,22 +639,100 @@
       }
     }
 
-    function setFaceExpression(mood, customMsg) {
-      const faceCard = document.getElementById('faceCard');
-      const speech = document.getElementById('plantMessage');
+    class CanvasEyes {
+      constructor(canvasId) {
+        this.canvas = document.getElementById(canvasId);
+        this.ctx = this.canvas.getContext('2d');
+        this.state = { w: 22, h: 32, r: 11, ps: 4, px: 0, py: 0, ey: 255, space: 12 };
+        this.target = { ...this.state };
+        this.moods = {
+          neutral: { w: 22, h: 32, r: 11, ps: 4, px: 0, py: 0, ey: 255, space: 12 },
+          happy: { w: 28, h: 24, r: 10, ps: 6, px: 0, py: 3, ey: 255, space: 6 },
+          thirsty: { w: 28, h: 26, r: 8, ps: 5, px: 0, py: 4, ey: 180, space: 10 },
+          dizzy: { w: 36, h: 36, r: 16, ps: 3, px: 0, py: 0, ey: 255, space: 6 },
+          loved: { w: 26, h: 28, r: 14, ps: 7, px: 0, py: 2, ey: 255, space: 4 },
+          searching: { w: 30, h: 28, r: 6, ps: 6, px: 4, py: 2, ey: 255, space: 6 }
+        };
+        this.blinkTimer = Date.now() + 3000;
+        this.isBlinking = false;
+        this.isWinking = false;
+        requestAnimationFrame(() => this.render());
+      }
+      setMood(mood) {
+        if (this.moods[mood]) this.target = { ...this.moods[mood] };
+      }
+      playWink() {
+        this.isWinking = true;
+        this.winkStart = Date.now();
+      }
+      render() {
+        let now = Date.now();
+        if (!this.isBlinking && !this.isWinking && now > this.blinkTimer) {
+          this.isBlinking = true;
+          this.blinkStart = now;
+          this.blinkTimer = now + 3000 + Math.random() * 4000;
+        }
+        for (let k in this.state) this.state[k] += (this.target[k] - this.state[k]) * 0.15;
+        let leftEy = this.state.ey, rightEy = this.state.ey;
+        
+        if (this.isBlinking) {
+          let prog = (now - this.blinkStart) / 200;
+          if (prog >= 1) this.isBlinking = false;
+          else if (prog < 0.5) leftEy = rightEy = 255 - (prog/0.5)*255;
+          else leftEy = rightEy = ((prog-0.5)/0.5)*255;
+        }
+        if (this.isWinking) {
+          let prog = (now - this.winkStart) / 200;
+          if (prog >= 1) this.isWinking = false;
+          else if (prog < 0.5) leftEy = 255 - (prog/0.5)*255;
+          else leftEy = ((prog-0.5)/0.5)*255;
+        }
+        
+        this.ctx.fillStyle = '#000';
+        this.ctx.fillRect(0, 0, 128, 64);
+        this.drawEye(64 - (this.state.w/2 + this.state.space/2), 32, this.state, leftEy);
+        this.drawEye(64 + (this.state.w/2 + this.state.space/2), 32, this.state, rightEy);
+        requestAnimationFrame(() => this.render());
+      }
+      drawEye(x, y, st, eyLevel) {
+        let ctx = this.ctx;
+        let effH = Math.max(2, (eyLevel * st.h) / 255);
+        ctx.fillStyle = '#FFF';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x - st.w/2, y - effH/2, st.w, effH, st.r);
+        else ctx.rect(x - st.w/2, y - effH/2, st.w, effH);
+        ctx.fill();
+        if (eyLevel > 80) {
+          ctx.fillStyle = '#000';
+          let px = (st.px * (st.w / 4)) / 4;
+          let py = (st.py * (effH / 4)) / 4;
+          ctx.beginPath();
+          ctx.arc(x + px, y + py, st.ps, 0, Math.PI*2);
+          ctx.fill();
+        }
+        if (eyLevel < 240 && eyLevel > 10) {
+          let halfCover = (st.h - effH) / 2;
+          ctx.fillStyle = '#000';
+          ctx.fillRect(x - st.w/2, y - st.h/2, st.w, halfCover);
+          ctx.fillRect(x - st.w/2, y + effH/2, st.w, halfCover + 1);
+        }
+      }
+    }
 
-      faceCard.classList.remove('mood-thirsty', 'mood-dizzy', 'mood-loved', 'mood-searching');
+    const oledEyes = new CanvasEyes('oledCanvas');
+
+    function setFaceExpression(mood, customMsg) {
+      const speech = document.getElementById('plantMessage');
+      
+      oledEyes.setMood(mood); // 1:1 PERFECT SYNC WITH ESP8266 OLED!
+
       if (mood === 'searching') {
-        faceCard.classList.add('mood-searching');
         speech.textContent = customMsg || "Soil probe not connected! Plug sensor into pin A0. 🔌";
       } else if (mood === 'thirsty') {
-        faceCard.classList.add('mood-thirsty');
         speech.textContent = customMsg || "I'm parched! Soil is dry... please water me! 🪣";
       } else if (mood === 'dizzy') {
-        faceCard.classList.add('mood-dizzy');
         speech.textContent = customMsg || "Whoa! Too much water! My roots are drowning! 🌊";
       } else if (mood === 'loved') {
-        faceCard.classList.add('mood-loved');
         speech.textContent = customMsg || "Aww, thank you! I love the attention! ❤️";
       } else {
         speech.textContent = customMsg || "I feel wonderful and well hydrated! 🌿";

@@ -13,8 +13,16 @@
 #include <Arduino.h>
 
 // ---- Wi-Fi Configuration ----
-char ssid[] = "esp";
-char pass[] = "esp12345";
+struct WiFiCredential {
+    const char* ssid;
+    const char* password;
+};
+
+WiFiCredential networks[] = {
+    {"esp", "esp12345"},
+    {"pi", "raspberry"}
+};
+const int numNetworks = sizeof(networks) / sizeof(networks[0]);
 
 // ---- Vercel Cloud API Endpoint ----
 // Replace with your actual Vercel project domain (e.g. "https://my-plant.vercel.app/api/update")
@@ -335,6 +343,10 @@ void readSensors() {
     t = newT;
   }
 
+  // Serial logging for practical calibration
+  Serial.printf("[Sensors] Raw A0: %d | Calc Moist: %d%% | Temp: %.1fC | Hum: %.0f%% | Mood: %s\n", 
+                rawMoist, moisture, t, h, mood.c_str());
+
   // Broadcast to local WebSocket clients
   String msg = "{\"t\":" + String(t,1) + 
                ",\"h\":" + String(h,1) + 
@@ -413,11 +425,35 @@ void setup() {
   eyes.setIdleMovement(true);
   eyes.setEmotion(EMOTION_NEUTRAL);
 
-  // Self-Healing Wi-Fi
+  // Multi-Network Wi-Fi Connection
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
   WiFi.persistent(true);
-  WiFi.begin(ssid, pass);
+
+  for (int i = 0; i < numNetworks; i++) {
+    Serial.printf("\nTrying Wi-Fi: %s", networks[i].ssid);
+    WiFi.begin(networks[i].ssid, networks[i].password);
+
+    unsigned long start = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - start < 8000) {
+      delay(50);
+      display.clearDisplay();
+      eyes.update(); // Keep face animated while waiting!
+      
+      display.setTextSize(1);
+      display.setTextColor(SSD1306_WHITE);
+      display.setCursor(12, 54);
+      display.printf("CONNECTING: %s", networks[i].ssid);
+      
+      display.display();
+    }
+
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.printf("\nConnected to %s\n", networks[i].ssid);
+      break;
+    }
+    WiFi.disconnect();
+  }
 
   server.on("/", handleRoot);
   server.on("/json", handleJson);

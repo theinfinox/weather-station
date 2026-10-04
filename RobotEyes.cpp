@@ -638,30 +638,30 @@ void RobotEyes::setPupilSize(uint8_t size) {
 }
 
 void RobotEyes::setEyelidOpen(uint8_t amount) {
-    _leftTarget.targetEyelid = constrain(amount, 0, 255);
-    _rightTarget.targetEyelid = _leftTarget.targetEyelid;
+    _left.targetEyelid = constrain(amount, 0, 255);
+    _right.targetEyelid = _left.targetEyelid;
     _dirty = true;
 }
 
 void RobotEyes::setEyelids(uint8_t left, uint8_t right) {
-    _leftTarget.targetEyelid = constrain(left, 0, 255);
-    _rightTarget.targetEyelid = constrain(right, 0, 255);
+    _left.targetEyelid = constrain(left, 0, 255);
+    _right.targetEyelid = constrain(right, 0, 255);
     _dirty = true;
 }
 
 void RobotEyes::openEyes() {
-    _leftTarget.targetEyelid = 255;
-    _rightTarget.targetEyelid = 255;
-    _leftTarget.isOpen = true;
-    _rightTarget.isOpen = true;
+    _left.targetEyelid = 255;
+    _right.targetEyelid = 255;
+    _left.isOpen = true;
+    _right.isOpen = true;
     _dirty = true;
 }
 
 void RobotEyes::closeEyes() {
-    _leftTarget.targetEyelid = 0;
-    _rightTarget.targetEyelid = 0;
-    _leftTarget.isOpen = false;
-    _rightTarget.isOpen = false;
+    _left.targetEyelid = 0;
+    _right.targetEyelid = 0;
+    _left.isOpen = false;
+    _right.isOpen = false;
     _dirty = true;
 }
 
@@ -748,11 +748,11 @@ void RobotEyes::playWinkLeft() {
     _animPlaying = true;
     _anim.startTime = millis();
     _anim.duration = 200;
-    _anim.phase = 0;
+    _anim.phase = 1; // Wink left phase
     _anim.progress = 0;
     _anim.loop = false;
-    _leftTarget.targetEyelid = 0;
-    _rightTarget.targetEyelid = 255;
+    _left.targetEyelid = 0;
+    _right.targetEyelid = 255;
     _dirty = true;
 }
 
@@ -761,11 +761,11 @@ void RobotEyes::playWinkRight() {
     _animPlaying = true;
     _anim.startTime = millis();
     _anim.duration = 200;
-    _anim.phase = 0;
+    _anim.phase = 2; // Wink right phase
     _anim.progress = 0;
     _anim.loop = false;
-    _leftTarget.targetEyelid = 255;
-    _rightTarget.targetEyelid = 0;
+    _left.targetEyelid = 255;
+    _right.targetEyelid = 0;
     _dirty = true;
 }
 
