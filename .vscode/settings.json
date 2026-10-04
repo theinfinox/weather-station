@@ -1,0 +1,7 @@
+{
+    "C_Cpp.default.compileCommands": "${workspaceFolder}/compile_commands.json",
+    "C_Cpp.default.configurationProvider": "platformio.platformio-ide",
+    "clangd.arguments": [
+        "--query-driver=C:\\Users\\1sree\\.platformio\\packages\\toolchain-xtensa\\bin\\*"
+    ]
+}

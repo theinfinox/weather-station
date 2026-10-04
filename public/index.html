@@ -11,19 +11,19 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #070d1e;
-      --card-bg: rgba(13, 23, 48, 0.75);
-      --card-border: rgba(255, 255, 255, 0.08);
-      --text: #e2e8f0;
-      --text-muted: #94a3b8;
-      --emerald: #10b981;
-      --emerald-glow: rgba(16, 185, 129, 0.25);
-      --coral: #fb7185;
-      --coral-glow: rgba(251, 113, 133, 0.25);
-      --sky: #38bdf8;
-      --sky-glow: rgba(56, 189, 248, 0.25);
-      --pink: #f43f5e;
-      --amber: #f59e0b;
+      --bg: #FAFAFA;
+      --card-bg: #FFFFFF;
+      --card-border: #EAEAEA;
+      --text: #111111;
+      --text-muted: #666666;
+      --emerald: #111111;
+      --emerald-glow: #F2F2F2;
+      --coral: #333333;
+      --coral-glow: #F2F2F2;
+      --sky: #666666;
+      --sky-glow: #F2F2F2;
+      --pink: #111111;
+      --amber: #333333;
     }
 
     * { box-sizing: border-box; }
@@ -32,7 +32,7 @@
       padding: 0;
       min-height: 100%;
       font-family: 'Outfit', system-ui, sans-serif;
-      background: radial-gradient(circle at 50% 0%, #111f42 0%, #070d1e 70%);
+      background: var(--bg);
       color: var(--text);
       -webkit-font-smoothing: antialiased;
     }
@@ -86,7 +86,7 @@
       color: var(--text-muted);
       padding: 6px 12px;
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.04);
+      background: #F7F7F7;
       border: 1px solid var(--card-border);
     }
     .pulse-dot {
@@ -94,28 +94,28 @@
       height: 8px;
       border-radius: 50%;
       background: var(--emerald);
-      box-shadow: 0 0 10px var(--emerald);
+      box-shadow: 0 0 10px rgba(17,17,17,0.2);
       animation: pulse 1.8s infinite;
     }
     .btn-link {
-      color: var(--sky);
+      color: var(--text);
       text-decoration: none;
       font-size: 0.85rem;
       font-weight: 500;
       padding: 6px 14px;
       border-radius: 8px;
-      border: 1px solid rgba(56, 189, 248, 0.25);
-      background: rgba(56, 189, 248, 0.08);
+      border: 1px solid var(--card-border);
+      background: #F7F7F7;
       transition: all 0.2s ease;
     }
     .btn-link:hover {
-      background: rgba(56, 189, 248, 0.18);
+      background: #EAEAEA;
       transform: translateY(-1px);
     }
 
     /* Robo-Face Emotive Screen */
     .face-card {
-      background: linear-gradient(180deg, rgba(16, 27, 56, 0.85) 0%, rgba(10, 18, 38, 0.95) 100%);
+      background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 20px;
       padding: 28px 24px;
@@ -124,15 +124,15 @@
       align-items: center;
       position: relative;
       overflow: hidden;
-      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.05);
     }
     .screen-bezel {
       width: min(340px, 90%);
       height: 150px;
-      background: #020612;
+      background: #F7F7F7;
       border-radius: 24px;
-      border: 3px solid #1e293b;
-      box-shadow: inset 0 0 20px rgba(0, 255, 170, 0.1), 0 0 25px rgba(0, 0, 0, 0.5);
+      border: 3px solid #EAEAEA;
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.05), 0 0 25px rgba(0, 0, 0, 0.02);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -151,7 +151,7 @@
       height: 64px;
       background: var(--emerald);
       border-radius: 18px;
-      box-shadow: 0 0 20px var(--emerald), inset 0 0 8px rgba(255, 255, 255, 0.6);
+      box-shadow: 0 0 20px rgba(17,17,17,0.1), inset 0 0 8px rgba(0, 0, 0, 0.05);
       transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
       position: relative;
     }
@@ -163,8 +163,8 @@
     }
     /* Thirsty / Sad */
     .mood-thirsty .eye {
-      background: #38bdf8;
-      box-shadow: 0 0 20px #38bdf8;
+      background: var(--sky);
+      box-shadow: 0 0 20px rgba(17,17,17,0.1);
       border-radius: 20px 20px 8px 8px;
       transform: translateY(6px) rotate(-8deg);
     }
@@ -176,9 +176,9 @@
       position: absolute;
       width: 8px;
       height: 14px;
-      background: #60a5fa;
+      background: #A3A3A3;
       border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-      box-shadow: 0 0 8px #60a5fa;
+      box-shadow: 0 0 8px rgba(163,163,163,0.3);
       animation: dropTear 1.4s infinite ease-in;
     }
     .mood-thirsty .tear { display: block; }
@@ -187,16 +187,16 @@
 
     /* Overwatered / Dizzy */
     .mood-dizzy .eye {
-      background: #818cf8;
-      box-shadow: 0 0 20px #818cf8;
+      background: var(--text);
+      box-shadow: 0 0 20px rgba(17,17,17,0.1);
       border-radius: 50%;
       animation: dizzySpin 2s infinite linear;
     }
 
     /* Searching / Disconnected Sensor */
     .mood-searching .eye {
-      background: #f59e0b;
-      box-shadow: 0 0 20px #f59e0b;
+      background: var(--amber);
+      box-shadow: 0 0 20px rgba(17,17,17,0.1);
       border-radius: 50%;
       animation: searchScan 2s infinite ease-in-out;
     }
@@ -207,8 +207,8 @@
 
     /* Loved / Petted (Heart Eyes) */
     .mood-loved .eye {
-      background: var(--pink);
-      box-shadow: 0 0 25px var(--pink);
+      background: var(--text);
+      box-shadow: 0 0 25px rgba(17,17,17,0.15);
       border-radius: 18px 18px 4px 4px;
       transform: scale(1.1);
       animation: heartPulse 0.8s infinite alternate ease-in-out;
@@ -218,8 +218,8 @@
     .speech-bubble {
       font-size: 1.05rem;
       font-weight: 500;
-      color: #f1f5f9;
-      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      background: #F7F7F7;
       border: 1px solid var(--card-border);
       padding: 10px 22px;
       border-radius: 999px;
@@ -235,21 +235,22 @@
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
-      color: white;
-      border: none;
+      background: #F7F7F7;
+      color: var(--text);
+      border: 1px solid var(--card-border);
       font-family: inherit;
       font-size: 0.95rem;
       font-weight: 600;
       padding: 10px 24px;
       border-radius: 999px;
       cursor: pointer;
-      box-shadow: 0 4px 15px rgba(244, 63, 94, 0.35);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
       transition: all 0.2s ease;
     }
     .pet-btn:hover {
       transform: scale(1.05);
-      box-shadow: 0 6px 20px rgba(244, 63, 94, 0.5);
+      background: #F2F2F2;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
     }
     .pet-btn:active {
       transform: scale(0.96);
@@ -318,16 +319,16 @@
       gap: 5px;
       width: fit-content;
     }
-    .tag-emerald { background: var(--emerald-glow); color: var(--emerald); }
-    .tag-coral { background: var(--coral-glow); color: var(--coral); }
-    .tag-sky { background: var(--sky-glow); color: var(--sky); }
-    .tag-purple { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
+    .tag-emerald { background: #F7F7F7; color: var(--text); border: 1px solid var(--card-border); }
+    .tag-coral { background: #F7F7F7; color: var(--text); border: 1px solid var(--card-border); }
+    .tag-sky { background: #F7F7F7; color: var(--text); border: 1px solid var(--card-border); }
+    .tag-purple { background: #F7F7F7; color: var(--text); border: 1px solid var(--card-border); }
 
     /* Progress Bar */
     .prog-track {
       width: 100%;
       height: 6px;
-      background: rgba(255, 255, 255, 0.08);
+      background: #F2F2F2;
       border-radius: 999px;
       overflow: hidden;
       margin-top: 4px;
@@ -523,8 +524,8 @@
           {
             label: 'Soil Moisture (%)',
             data: [],
-            borderColor: '#10b981',
-            backgroundColor: 'rgba(16, 185, 129, 0.08)',
+            borderColor: '#111111',
+            backgroundColor: 'rgba(17, 17, 17, 0.08)',
             fill: true,
             tension: 0.35,
             pointRadius: 2,
@@ -534,7 +535,7 @@
           {
             label: 'Temperature (°C)',
             data: [],
-            borderColor: '#fb7185',
+            borderColor: '#666666',
             backgroundColor: 'transparent',
             tension: 0.35,
             pointRadius: 2,
@@ -544,7 +545,7 @@
           {
             label: 'Air Humidity (%)',
             data: [],
-            borderColor: '#38bdf8',
+            borderColor: '#333333',
             backgroundColor: 'transparent',
             tension: 0.35,
             pointRadius: 2,
@@ -562,12 +563,14 @@
           legend: {
             display: true,
             position: 'bottom',
-            labels: { color: '#cbd5e1', font: { family: 'Outfit', size: 12 }, padding: 16 }
+            labels: { color: '#666666', font: { family: 'Outfit', size: 12 }, padding: 16 }
           },
           tooltip: {
-            backgroundColor: 'rgba(10, 18, 38, 0.95)',
-            borderColor: 'rgba(255, 255, 255, 0.15)',
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            borderColor: '#EAEAEA',
             borderWidth: 1,
+            titleColor: '#111111',
+            bodyColor: '#333333',
             titleFont: { family: 'Outfit', weight: 'bold' },
             bodyFont: { family: 'JetBrains Mono', size: 12 },
             padding: 12,
@@ -579,21 +582,21 @@
         scales: {
           x: {
             display: true,
-            ticks: { color: '#64748b', maxTicksLimit: 8 },
-            grid: { color: 'rgba(255, 255, 255, 0.04)' }
+            ticks: { color: '#666666', maxTicksLimit: 8 },
+            grid: { color: 'rgba(17, 17, 17, 0.04)' }
           },
           yMoist: {
             position: 'left',
             min: 0,
             max: 100,
-            ticks: { color: '#10b981', callback: v => v + '%' },
-            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+            ticks: { color: '#111111', callback: v => v + '%' },
+            grid: { color: 'rgba(17, 17, 17, 0.05)' }
           },
           yTemp: {
             position: 'right',
             min: 10,
             max: 45,
-            ticks: { color: '#fb7185', callback: v => v + '°' },
+            ticks: { color: '#666666', callback: v => v + '°' },
             grid: { drawOnChartArea: false }
           },
           yHum: {
