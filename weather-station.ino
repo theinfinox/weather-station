@@ -26,7 +26,7 @@ const int numNetworks = sizeof(networks) / sizeof(networks[0]);
 
 // ---- Vercel Cloud API Endpoint ----
 // Replace with your actual Vercel project domain (e.g. "https://my-plant.vercel.app/api/update")
-const char* vercelUrl = "https://weather-station-nu-one.vercel.app/api/update";
+const char* vercelUrl = "https://weather-station-esp.vercel.app/api/update";
 
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
@@ -92,7 +92,7 @@ EyeEmotion currentEmotion = EMOTION_NEUTRAL;
 // Non-blocking Timer Tracking (Zero external timer dependencies)
 unsigned long lastAnimTime = 0;
 unsigned long lastSensorTime = 0;
-unsigned long lastVercelSync = 0;
+unsigned long lastVercelSync = -60000; // Trigger an immediate sync on boot!
 
 // Button Debounce State
 bool lastButtonState = HIGH;
@@ -277,7 +277,7 @@ void drawDiagnostics() {
   display.printf("Air Humid : %.0f %%", h);
 
   display.setCursor(0, 52);
-  display.printf("Raw A0:%d | %s", rawMoist, WiFi.status() == WL_CONNECTED ? "WIFI ON" : "OFFLINE");
+  display.printf("A0:%d | %s", rawMoist, WiFi.status() == WL_CONNECTED ? "WIFI" : "OFFLINE");
 
   display.display();
 }
@@ -289,6 +289,7 @@ void syncWithVercel() {
 
     HTTPClient https;
     if (https.begin(*secureClient, vercelUrl)) {
+      https.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS); // REQUIRED for Vercel 308 Redirects
       https.addHeader("Content-Type", "application/json");
 
       String payload = "{\"t\":" + String(t, 1) + 
