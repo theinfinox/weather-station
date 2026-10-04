@@ -16,13 +16,18 @@
       --card-border: #EAEAEA;
       --text: #111111;
       --text-muted: #666666;
-      --emerald: #111111;
-      --emerald-glow: #F2F2F2;
-      --coral: #333333;
+      
+      /* 20% Green Palette */
+      --emerald: #10B981;        
+      --emerald-glow: #ECFDF5;
+      --vitality: #059669;       
+      --vitality-glow: #D1FAE5;
+      
+      /* Grayscale accents to balance the green */
+      --coral: #333333;          
       --coral-glow: #F2F2F2;
-      --sky: #666666;
+      --sky: #666666;            
       --sky-glow: #F2F2F2;
-      --pink: #111111;
       --amber: #333333;
     }
 
@@ -317,7 +322,7 @@
     .card-moisture::before { background: var(--emerald); }
     .card-temp::before { background: var(--coral); }
     .card-hum::before { background: var(--sky); }
-    .card-health::before { background: #a855f7; }
+    .card-health::before { background: var(--vitality); }
 
     .card-head {
       display: flex;
@@ -343,10 +348,10 @@
       gap: 5px;
       width: fit-content;
     }
-    .tag-emerald { background: #F7F7F7; color: var(--text); border: 1px solid var(--card-border); }
+    .tag-emerald { background: var(--emerald-glow); color: var(--emerald); border: 1px solid rgba(16, 185, 129, 0.2); }
     .tag-coral { background: #F7F7F7; color: var(--text); border: 1px solid var(--card-border); }
     .tag-sky { background: #F7F7F7; color: var(--text); border: 1px solid var(--card-border); }
-    .tag-purple { background: #F7F7F7; color: var(--text); border: 1px solid var(--card-border); }
+    .tag-vitality { background: var(--vitality-glow); color: var(--vitality); border: 1px solid rgba(5, 150, 105, 0.2); }
 
     /* Progress Bar */
     .prog-track {
@@ -537,11 +542,11 @@
           <span>Plant Vitality</span>
           <span>✨ Bio-Score</span>
         </div>
-        <div class="metric-value" style="color: #c084fc;" id="valHealth">--/100</div>
+        <div class="metric-value" style="color: var(--vitality);" id="valHealth">--/100</div>
         <div class="prog-track">
-          <div class="prog-fill" id="fillHealth" style="width: 0%; background: #a855f7;"></div>
+          <div class="prog-fill" id="fillHealth" style="width: 0%; background: var(--vitality);"></div>
         </div>
-        <div class="pill-tag tag-purple" id="tagHealth">Calculating...</div>
+        <div class="pill-tag tag-vitality" id="tagHealth">Calculating...</div>
       </div>
     </section>
 
@@ -575,8 +580,8 @@
           {
             label: 'Soil Moisture (%)',
             data: [],
-            borderColor: '#111111',
-            backgroundColor: 'rgba(17, 17, 17, 0.08)',
+            borderColor: '#10B981',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
             fill: true,
             tension: 0.35,
             pointRadius: 2,
