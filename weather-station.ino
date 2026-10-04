@@ -87,8 +87,12 @@ EyeEmotion currentEmotion = EMOTION_NEUTRAL;
 
 // Non-blocking Timer Tracking (Zero external timer dependencies)
 unsigned long lastAnimTime = 0;
-unsigned long lastSensorTime = 0;
-unsigned long lastVercelSync = -60000; // Trigger an immediate sync on boot!
+
+// Deterministic 5-Second IoT Cadence State Machine
+const unsigned long CYCLE_DURATION_MS = 5000;
+unsigned long cycleStartTime = 0;
+bool phaseSensorsCollected = false;
+bool phaseCloudSent = false;
 
 // Button Debounce State
 bool lastButtonState = HIGH;
@@ -284,45 +288,39 @@ bool syncWithVercel() {
                    ",\"mood\":\"" + mood + "\"" +
                    ",\"status\":\"" + statusMsg + "\"}";
 
-  // Two-stage retry loop (1 primary attempt + 1 automatic failover retry)
-  for (int attempt = 1; attempt <= 2; attempt++) {
-    BearSSL::WiFiClientSecure client;
-    client.setInsecure(); // Bypass CA verification for serverless endpoints
-    client.setTimeout(8000); // 8-second SSL timeout
+  // Single non-blocking TLS transmission per 5s cycle (3.5s timeout budget)
+  BearSSL::WiFiClientSecure client;
+  client.setInsecure(); // Bypass CA verification for serverless endpoints
+  client.setTimeout(3500); // 3.5-second SSL timeout
+  
+  // CRITICAL: Restrict buffer sizes to 1024 RX / 512 TX.
+  // Saves over 30KB of contiguous heap, preventing malloc() NULL crashes!
+  client.setBufferSizes(1024, 512);
+
+  HTTPClient https;
+  if (https.begin(client, vercelUrl)) {
+    https.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    https.addHeader("Content-Type", "application/json");
+    https.addHeader("User-Agent", "ESP8266-Flori/1.0");
+    https.addHeader("Connection", "close"); // Avoid socket hangs on edge proxy
+
+    int httpCode = https.POST(payload);
     
-    // CRITICAL: Restrict buffer sizes to 1024 RX / 512 TX.
-    // Saves over 30KB of contiguous heap, preventing malloc() NULL crashes!
-    client.setBufferSizes(1024, 512);
-
-    HTTPClient https;
-    if (https.begin(client, vercelUrl)) {
-      https.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-      https.addHeader("Content-Type", "application/json");
-      https.addHeader("User-Agent", "ESP8266-Flori/1.0");
-      https.addHeader("Connection", "close"); // Avoid socket hangs on edge proxy
-
-      int httpCode = https.POST(payload);
-      
-      if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_CREATED) {
-        Serial.printf("[Vercel] Sync Success: HTTP %d (Free Heap: %d bytes)\n", httpCode, ESP.getFreeHeap());
-        https.end();
-        client.stop();
-        return true;
-      } else if (httpCode > 0) {
-        Serial.printf("[Vercel] Server Response: HTTP %d (attempt %d/2)\n", httpCode, attempt);
-      } else {
-        Serial.printf("[Vercel] Transport Error: %s (attempt %d/2)\n", https.errorToString(httpCode).c_str(), attempt);
-      }
+    if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_CREATED) {
+      Serial.printf("[Vercel] Sync Success: HTTP %d (Free Heap: %d bytes)\n", httpCode, ESP.getFreeHeap());
       https.end();
+      client.stop();
+      return true;
+    } else if (httpCode > 0) {
+      Serial.printf("[Vercel] Server Response: HTTP %d\n", httpCode);
     } else {
-      Serial.printf("[Vercel] Failed to initialize HTTP client (attempt %d/2)\n", attempt);
+      Serial.printf("[Vercel] Transport Error: %s\n", https.errorToString(httpCode).c_str());
     }
-    client.stop();
-
-    if (attempt < 2) {
-      delay(1500); // Wait 1.5s before retry
-    }
+    https.end();
+  } else {
+    Serial.println(F("[Vercel] Failed to initialize HTTP client"));
   }
+  client.stop();
 
   return false;
 }
@@ -459,13 +457,16 @@ void setup() {
   webSocket.begin();
 
   readSensors();
+  phaseSensorsCollected = true;
   syncWithVercel(); // Trigger immediate sync on boot
-  lastVercelSync = millis();
+  phaseCloudSent = true;
+  cycleStartTime = millis();
 }
 
 // ---- Main Non-Blocking Loop ----
 void loop() {
   unsigned long now = millis();
+  unsigned long elapsed = now - cycleStartTime;
 
   server.handleClient();
   webSocket.loop();
@@ -479,6 +480,7 @@ void loop() {
   }
   if (mdnsStarted) MDNS.update();
 
+  // Continuous Display Engine & Button Debounce (30ms refresh = ~33 FPS)
   if (now - lastAnimTime >= 30) {
     lastAnimTime = now;
     checkButton();
@@ -490,14 +492,24 @@ void loop() {
     }
   }
 
-  if (now - lastSensorTime >= 2500) {
-    lastSensorTime = now;
-    readSensors();
+  // --- 5-Second Deterministic IoT Cadence ---
+  // Cycle Wrap / Reset every 5000ms
+  if (elapsed >= CYCLE_DURATION_MS) {
+    cycleStartTime = now;
+    elapsed = 0;
+    phaseSensorsCollected = false;
+    phaseCloudSent = false;
   }
 
-  // Sync with Vercel every 20 seconds (instead of 60s)
-  if (now - lastVercelSync >= 20000) {
-    lastVercelSync = now;
+  // Phase 1: Exactly at 1.0s (1000ms) -> Collect Sensor Data (isolated from TLS)
+  if (elapsed >= 1000 && !phaseSensorsCollected) {
+    readSensors();
+    phaseSensorsCollected = true;
+  }
+
+  // Phase 3: Exactly at 3.0s (3000ms) -> Transmit Telemetry over TLS to Vercel
+  if (elapsed >= 3000 && !phaseCloudSent) {
     syncWithVercel();
+    phaseCloudSent = true;
   }
 }

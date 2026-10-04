@@ -851,7 +851,9 @@
       return Math.max(15, Math.min(100, Math.round(score)));
     }
 
-    // Polling API Routine
+    // Polling API Routine with Deduplication Guard
+    let lastTelemetryTime = null;
+
     async function fetchTelemetry() {
       try {
         const res = await fetch('/api/update');
@@ -863,6 +865,12 @@
             document.getElementById('liveDot').style.background = '#9CA3AF';
             return;
         }
+
+        // DEDUPLICATION: Ignore duplicate payloads if ESP has not published a new cycle yet
+        if (data.time && data.time === lastTelemetryTime) {
+          return;
+        }
+        lastTelemetryTime = data.time;
 
         const t = Number(data.t || 24);
         const h = Number(data.h || 55);
@@ -912,7 +920,7 @@
         // Set Face Expression
         setFaceExpression(mood);
 
-        // Chart Update
+        // Chart Update (Appended ONLY when a genuinely new sensor cycle arrives)
         chart.data.labels.push(timeStr);
         chart.data.datasets[0].data.push(isProbeConnected ? m : null);
         chart.data.datasets[1].data.push(t);
@@ -930,9 +938,9 @@
       }
     }
 
-    // Initialize & Start Continuous 3s Live Polling
+    // Initialize & Start Continuous 2s Live Polling (deduplication ensures zero repeated points)
     fetchTelemetry();
-    setInterval(fetchTelemetry, 3000);
+    setInterval(fetchTelemetry, 2000);
   </script>
 </body>
 </html>

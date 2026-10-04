@@ -3,6 +3,9 @@
 let latest = null;
 
 export default function handler(req, res) {
+  // Prevent CDN and edge proxy stale caching
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+
   if (req.method === 'POST') {
     try {
       const body = req.body || {};
