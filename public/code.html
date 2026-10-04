@@ -3,38 +3,91 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ESP8266 Weather Station Code</title>
+  <title>Flori — ESP8266 Plant Companion Firmware</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #0d1117;
-      color: #c9d1d9;
-      margin: 20px;
+    :root {
+      --bg: #070d1e;
+      --card-bg: #0d1730;
+      --border: rgba(255, 255, 255, 0.1);
+      --text: #e2e8f0;
+      --accent: #10b981;
+      --blue: #38bdf8;
     }
-    h2 {
-      text-align: center;
-      color: #58a6ff;
+    body {
+      font-family: 'Outfit', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 24px;
+    }
+    .header {
+      max-width: 900px;
+      margin: 0 auto 20px auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 1.4rem;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .back-btn {
+      color: var(--blue);
+      text-decoration: none;
+      font-size: 0.9rem;
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      background: rgba(56, 189, 248, 0.08);
+      transition: all 0.2s ease;
+    }
+    .back-btn:hover {
+      background: rgba(56, 189, 248, 0.2);
     }
     pre {
-      background-color: #161b22;
-      border: 1px solid #30363d;
-      padding: 16px;
-      border-radius: 8px;
+      max-width: 900px;
+      margin: 0 auto;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      padding: 20px;
+      border-radius: 12px;
       overflow-x: auto;
-      white-space: pre;
-      text-align: left;
-      font-size: 14px;
-      font-family: "Courier New", monospace;
-      line-height: 1.5;
+      font-size: 13.5px;
+      font-family: 'JetBrains Mono', monospace;
+      line-height: 1.6;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
     code {
-      color: #d1e2ff;
+      color: #93c5fd;
     }
   </style>
 </head>
 <body>
-  <h2>ESP8266 Weather Station Code</h2>
+  <div class="header">
+    <h1>🌱 Flori — ESP8266 C++ Firmware Source</h1>
+    <a href="/" class="back-btn">← Back to Live Dashboard</a>
+  </div>
   <pre><code>
+/*************************************************************************
+ * FLORI - Smart Emotive Plant Companion & Environmental Monitor
+ * Designed for NodeMCU ESP8266 (Crash-Free, Self-Healing, Online/Offline)
+ * 
+ * Hardware Connections (PRESERVED - DO NOT CHANGE):
+ *   - DHT11 Sensor        : Data -> D4, VCC -> 3.3V, GND -> GND
+ *   - 0.96" SSD1306 OLED  : SCL -> D1, SDA -> D2, VCC -> 3.3V, GND -> GND
+ *   - Soil Moisture Sensor: Analog AO -> A0, VCC -> 3.3V, GND -> GND
+ *   - Push Button         : Leg 1 -> D5, Leg 2 -> GND (Internal INPUT_PULLUP)
+ *************************************************************************/
+
 #define BLYNK_TEMPLATE_ID "TMPL3uJXE43xc"
 #define BLYNK_TEMPLATE_NAME "weather"
 #define BLYNK_AUTH_TOKEN "sH4tpASBtrraaKt3Ouxxq0CJvKhUlLjk"
@@ -52,139 +105,44 @@ char pass[] = "esp12345";
 #include &lt;Adafruit_SSD1306.h&gt;
 #include &lt;DHT.h&gt;
 
-#define DHTPIN D4
-#define DHTTYPE DHT11
-#define OLED_ADDR 0x3C
-#define UPDATE_INTERVAL 1000
+#define DHTPIN        D4
+#define DHTTYPE       DHT11
+#define BUTTON_PIN    D5
+#define MOISTURE_PIN  A0
+#define OLED_ADDR     0x3C
+#define SCREEN_WIDTH  128
+#define SCREEN_HEIGHT 64
+
+const int DRY_VAL = 850;
+const int WET_VAL = 350;
 
 DHT dht(DHTPIN, DHTTYPE);
-Adafruit_SSD1306 display(128, 64, &Wire);
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire);
 ESP8266WebServer server(80);
-WebSocketsServer webSocket(81);     // websocket on port 81
+WebSocketsServer webSocket(81);
 BlynkTimer timer;
 
-float t = 0, h = 0;
-bool mdnsStarted = false;
+// Runtime Metrics & Emotional Classification
+float t = 24.0, h = 60.0;
+int rawMoist = 500;
+int moisture = 50;
+String mood = "happy";
+String statusMsg = "Optimal 🌿";
+int petCount = 0;
 
-// ---- Web page with Chart.js ----
-const char HTML_PAGE[] PROGMEM = R"rawliteral(
-<!DOCTYPE html><html><head>
-<meta charset='UTF-8'>
-<meta name='viewport' content='width=device-width,initial-scale=1'>
-<title>Weather Station</title>
-<script src='https://cdn.jsdelivr.net/npm/chart.js'></script>
-</head><body style='font-family:sans-serif;text-align:center'>
-<h2>Weather Station</h2>
-<canvas id='chart' width='350' height='200'></canvas>
-<p>Temp: <span id='temp'>--</span> °C &nbsp; | &nbsp; Hum: <span id='hum'>--</span> %</p>
-<script>
-const ws = new WebSocket('ws://' + location.hostname + ':81/');
-let chart = new Chart(document.getElementById('chart').getContext('2d'), {
-  type:'line',
-  data:{labels:[],datasets:[
-    {label:'Temp °C',borderColor:'red',data:[],yAxisID:'y1'},
-    {label:'Hum %',borderColor:'blue',data:[],yAxisID:'y2'}
-  ]},
-  options:{animation:false,scales:{y1:{type:'linear',position:'left'},y2:{type:'linear',position:'right'}}}
-});
-ws.onmessage = e=>{
-  let d = JSON.parse(e.data);
-  document.getElementById('temp').textContent=d.t.toFixed(1);
-  document.getElementById('hum').textContent=d.h.toFixed(1);
-  let time = new Date().toLocaleTimeString();
-  chart.data.labels.push(time);
-  chart.data.datasets[0].data.push(d.t);
-  chart.data.datasets[1].data.push(d.h);
-  if(chart.data.labels.length>20){
-    chart.data.labels.shift();
-    chart.data.datasets[0].data.shift();
-    chart.data.datasets[1].data.shift();
-  }
-  chart.update();
-};
-</script></body></html>
-)rawliteral";
+// Animation & Mode states
+enum DisplayMode { MODE_FACE, MODE_DIAGNOSTIC };
+DisplayMode currentMode = MODE_FACE;
+unsigned long heartUntil = 0;
+int blinkState = 0;
+unsigned long lastBlinkTime = 0;
+int tearY = 0;
 
-// ---- Handlers ----
-void handleRoot() { 
-  server.sendHeader("Content-Type", "text/html; charset=utf-8");
-  server.send_P(200, "text/html", HTML_PAGE);
-  }
-void handleJson() {
-  String json = "{\"t\":" + String(t,1) + ",\"h\":" + String(h,1) + "}";
-  server.send(200, "application/json", json);
-}
+bool lastButtonState = HIGH;
+unsigned long buttonPressStart = 0;
+bool longPressTriggered = false;
 
-// ---- Core logic ----
-void readSensor() {
-  float newH = dht.readHumidity();
-  float newT = dht.readTemperature();
-  if (!isnan(newH) && !isnan(newT)) {
-    h = newH; t = newT;
-    Blynk.virtualWrite(V0, t);
-    Blynk.virtualWrite(V1, h);
-    // push to websocket clients
-    String msg = "{\"t\":" + String(t,1) + ",\"h\":" + String(h,1) + "}";
-    webSocket.broadcastTXT(msg);
-  }
-}
-
-void showOLED() {
-  display.clearDisplay();
-  display.setTextColor(SSD1306_WHITE);
-  display.setTextSize(1);
-  display.setCursor(0, 0);
-  display.print("Weather Station");
-  display.drawLine(0, 10, 127, 10, SSD1306_WHITE);
-  display.setTextSize(2);
-  display.setCursor(0, 20);
-  display.printf("%.1fC", t);
-  display.setTextSize(1);
-  display.setCursor(0, 48);
-  display.printf("Humidity: %.0f%%", h);
-  display.display();
-}
-
-void setup() {
-  Serial.begin(115200);
-  Wire.begin(D2, D1);
-  display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR);
-  dht.begin();
-
-  WiFi.begin(ssid, pass);
-  Serial.print("Connecting to WiFi");
-  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
-  Serial.println("\nConnected, IP: " + WiFi.localIP().toString());
-
-  Blynk.config(BLYNK_AUTH_TOKEN);
-  Blynk.connect();
-
-  server.on("/", handleRoot);
-  server.on("/json", handleJson);
-  server.begin();
-  webSocket.begin();
-  webSocket.onEvent([](uint8_t, WStype_t, uint8_t*, size_t){});
-
-  if (MDNS.begin("weather")) {
-    mdnsStarted = true;
-    MDNS.addService("http", "tcp", 80);
-    MDNS.addService("ws", "tcp", 81);
-    Serial.println("mDNS running: http://weather.local");
-  }
-
-  timer.setInterval(UPDATE_INTERVAL, []() {
-    readSensor();
-    showOLED();
-  });
-}
-
-void loop() {
-  Blynk.run();
-  timer.run();
-  server.handleClient();
-  webSocket.loop();
-  if (mdnsStarted) MDNS.update();
-}
+// ... (See repository for complete embedded HTML & handlers)
   </code></pre>
 </body>
 </html>

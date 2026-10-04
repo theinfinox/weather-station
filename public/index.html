@@ -1,141 +1,730 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Weather Station</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
-<style>
-  :root{--bg:#0f172a;--card:#0b1220;--muted:#9aa6bf;--accent1:#fb7185;--accent2:#60a5fa}
-  html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial}
-  body{display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#071027 0%, #07142a 100%);color:#e6eef8}
-  .wrap{width:min(920px,94vw);padding:28px;border-radius:14px;background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));box-shadow:0 8px 30px rgba(2,6,23,0.6)}
-  .head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
-  .title{display:flex;gap:14px;align-items:center}
-  .title h1{font-size:20px;margin:0;font-weight:600}
-  .status{font-size:13px;color:var(--muted)}
-  .values{display:flex;gap:10px;align-items:center}
-  .pill{background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:999px;min-width:96px;text-align:center}
-  .pill .big{font-size:18px;font-weight:600}
-  canvas{width:100%;height:320px}
-  @media (max-width:640px){canvas{height:260px}}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Flori — Smart Emotive Plant Companion</title>
+  <meta name="description" content="IoT Smart Plant Monitoring with Real-time Emotive Robo-Eyes, Soil Moisture, and Dual-Tier Telemetry." />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #070d1e;
+      --card-bg: rgba(13, 23, 48, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --emerald: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.25);
+      --coral: #fb7185;
+      --coral-glow: rgba(251, 113, 133, 0.25);
+      --sky: #38bdf8;
+      --sky-glow: rgba(56, 189, 248, 0.25);
+      --pink: #f43f5e;
+      --amber: #f59e0b;
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+      font-family: 'Outfit', system-ui, sans-serif;
+      background: radial-gradient(circle at 50% 0%, #111f42 0%, #070d1e 70%);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      width: min(1040px, 94vw);
+      margin: 24px auto 48px auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Top Nav */
+    .nav-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 18px;
+      border-radius: 14px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(12px);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.15rem;
+      letter-spacing: -0.02em;
+    }
+    .brand-badge {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--emerald-glow);
+      color: var(--emerald);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+    }
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--emerald);
+      box-shadow: 0 0 10px var(--emerald);
+      animation: pulse 1.8s infinite;
+    }
+    .btn-link {
+      color: var(--sky);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      background: rgba(56, 189, 248, 0.08);
+      transition: all 0.2s ease;
+    }
+    .btn-link:hover {
+      background: rgba(56, 189, 248, 0.18);
+      transform: translateY(-1px);
+    }
+
+    /* Robo-Face Emotive Screen */
+    .face-card {
+      background: linear-gradient(180deg, rgba(16, 27, 56, 0.85) 0%, rgba(10, 18, 38, 0.95) 100%);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 28px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+    }
+    .screen-bezel {
+      width: min(340px, 90%);
+      height: 150px;
+      background: #020612;
+      border-radius: 24px;
+      border: 3px solid #1e293b;
+      box-shadow: inset 0 0 20px rgba(0, 255, 170, 0.1), 0 0 25px rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      margin-bottom: 16px;
+    }
+    .eyes-container {
+      display: flex;
+      gap: 50px;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .eye {
+      width: 52px;
+      height: 64px;
+      background: var(--emerald);
+      border-radius: 18px;
+      box-shadow: 0 0 20px var(--emerald), inset 0 0 8px rgba(255, 255, 255, 0.6);
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      position: relative;
+    }
+
+    /* Eye Expression Animations */
+    .eye.blink {
+      height: 6px !important;
+      border-radius: 3px !important;
+    }
+    /* Thirsty / Sad */
+    .mood-thirsty .eye {
+      background: #38bdf8;
+      box-shadow: 0 0 20px #38bdf8;
+      border-radius: 20px 20px 8px 8px;
+      transform: translateY(6px) rotate(-8deg);
+    }
+    .mood-thirsty .eye.right {
+      transform: translateY(6px) rotate(8deg);
+    }
+    .tear {
+      display: none;
+      position: absolute;
+      width: 8px;
+      height: 14px;
+      background: #60a5fa;
+      border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+      box-shadow: 0 0 8px #60a5fa;
+      animation: dropTear 1.4s infinite ease-in;
+    }
+    .mood-thirsty .tear { display: block; }
+    .tear.left-tear { left: 40px; top: 85px; }
+    .tear.right-tear { right: 40px; top: 85px; }
+
+    /* Overwatered / Dizzy */
+    .mood-dizzy .eye {
+      background: #818cf8;
+      box-shadow: 0 0 20px #818cf8;
+      border-radius: 50%;
+      animation: dizzySpin 2s infinite linear;
+    }
+
+    /* Loved / Petted (Heart Eyes) */
+    .mood-loved .eye {
+      background: var(--pink);
+      box-shadow: 0 0 25px var(--pink);
+      border-radius: 18px 18px 4px 4px;
+      transform: scale(1.1);
+      animation: heartPulse 0.8s infinite alternate ease-in-out;
+    }
+
+    /* Speech Bubble */
+    .speech-bubble {
+      font-size: 1.05rem;
+      font-weight: 500;
+      color: #f1f5f9;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      padding: 10px 22px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .pet-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+      color: white;
+      border: none;
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 10px 24px;
+      border-radius: 999px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(244, 63, 94, 0.35);
+      transition: all 0.2s ease;
+    }
+    .pet-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 6px 20px rgba(244, 63, 94, 0.5);
+    }
+    .pet-btn:active {
+      transform: scale(0.96);
+    }
+    .pet-counter {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    /* Metrics Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+    .metric-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(12px);
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .metric-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+    .card-moisture::before { background: var(--emerald); }
+    .card-temp::before { background: var(--coral); }
+    .card-hum::before { background: var(--sky); }
+    .card-health::before { background: #a855f7; }
+
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .metric-value {
+      font-size: 2.1rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .pill-tag {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      width: fit-content;
+    }
+    .tag-emerald { background: var(--emerald-glow); color: var(--emerald); }
+    .tag-coral { background: var(--coral-glow); color: var(--coral); }
+    .tag-sky { background: var(--sky-glow); color: var(--sky); }
+    .tag-purple { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
+
+    /* Progress Bar */
+    .prog-track {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .prog-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.6s ease;
+    }
+
+    /* Chart Section */
+    .chart-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 24px;
+      backdrop-filter: blur(12px);
+    }
+    .chart-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .chart-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin: 0;
+    }
+    .chart-sub {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .chart-wrap {
+      width: 100%;
+      height: 340px;
+      position: relative;
+    }
+
+    /* Keyframes */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.9); }
+    }
+    @keyframes dropTear {
+      0% { opacity: 0; transform: translateY(0); }
+      30% { opacity: 1; }
+      100% { opacity: 0; transform: translateY(35px); }
+    }
+    @keyframes heartPulse {
+      0% { transform: scale(1); }
+      100% { transform: scale(1.15); }
+    }
+    @keyframes dizzySpin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 640px) {
+      .container { width: 95vw; margin-top: 14px; gap: 14px; }
+      .screen-bezel { height: 120px; }
+      .eye { width: 42px; height: 52px; }
+      .eyes-container { gap: 36px; }
+      .chart-wrap { height: 260px; }
+    }
+  </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="head">
-      <div class="title">
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M3 12a4.5 4.5 0 0 0 9 0 4.5 4.5 0 0 0 9 0" stroke="#60a5fa" stroke-width="1.5" stroke-linecap="round"/></svg>
+
+  <div class="container">
+    
+    <!-- Top Navigation Bar -->
+    <header class="nav-bar">
+      <div class="brand">
+        <span>🌱 Flori</span>
+        <span class="brand-badge">Plant Companion IoT</span>
+      </div>
+      <div class="nav-actions">
+        <div class="status-pill">
+          <div class="pulse-dot" id="liveDot"></div>
+          <span id="connStatus">Connecting...</span>
+        </div>
+        <a href="/code" class="btn-link" title="Inspect Arduino C++ Firmware">View C++ Code</a>
+      </div>
+    </header>
+
+    <!-- Interactive Robo-Face Card -->
+    <section class="face-card" id="faceCard">
+      <div class="screen-bezel">
+        <div class="eyes-container" id="eyesGroup">
+          <div class="eye left"></div>
+          <div class="eye right"></div>
+        </div>
+        <div class="tear left-tear"></div>
+        <div class="tear right-tear"></div>
+      </div>
+
+      <div class="speech-bubble" id="speechText">
+        <span>🌿</span>
+        <span id="plantMessage">Checking soil and room conditions...</span>
+      </div>
+
+      <button class="pet-btn" id="petBtn" onclick="petFlori()">
+        <span>❤️</span> Pet Flori!
+      </button>
+      <div class="pet-counter" id="petCounterText">Petted 0 times today</div>
+    </section>
+
+    <!-- Metric Cards Grid -->
+    <section class="metrics-grid">
+      <!-- Soil Moisture -->
+      <div class="metric-card card-moisture">
+        <div class="card-head">
+          <span>Soil Moisture</span>
+          <span>🌱 Sensor A0</span>
+        </div>
+        <div class="metric-value" style="color: var(--emerald);" id="valMoist">--%</div>
+        <div class="prog-track">
+          <div class="prog-fill" id="fillMoist" style="width: 0%; background: var(--emerald);"></div>
+        </div>
+        <div class="pill-tag tag-emerald" id="tagMoist">Evaluating...</div>
+      </div>
+
+      <!-- Temperature -->
+      <div class="metric-card card-temp">
+        <div class="card-head">
+          <span>Air Temperature</span>
+          <span>🌡️ DHT11</span>
+        </div>
+        <div class="metric-value" style="color: var(--coral);" id="valTemp">--°C</div>
+        <div class="prog-track">
+          <div class="prog-fill" id="fillTemp" style="width: 0%; background: var(--coral);"></div>
+        </div>
+        <div class="pill-tag tag-coral" id="tagTemp">Evaluating...</div>
+      </div>
+
+      <!-- Air Humidity -->
+      <div class="metric-card card-hum">
+        <div class="card-head">
+          <span>Air Humidity</span>
+          <span>💧 DHT11</span>
+        </div>
+        <div class="metric-value" style="color: var(--sky);" id="valHum">--%</div>
+        <div class="prog-track">
+          <div class="prog-fill" id="fillHum" style="width: 0%; background: var(--sky);"></div>
+        </div>
+        <div class="pill-tag tag-sky" id="tagHum">Evaluating...</div>
+      </div>
+
+      <!-- Overall Plant Vitality -->
+      <div class="metric-card card-health">
+        <div class="card-head">
+          <span>Plant Vitality</span>
+          <span>✨ Bio-Score</span>
+        </div>
+        <div class="metric-value" style="color: #c084fc;" id="valHealth">--/100</div>
+        <div class="prog-track">
+          <div class="prog-fill" id="fillHealth" style="width: 0%; background: #a855f7;"></div>
+        </div>
+        <div class="pill-tag tag-purple" id="tagHealth">Calculating...</div>
+      </div>
+    </section>
+
+    <!-- Live Telemetry Chart -->
+    <section class="chart-card">
+      <div class="chart-head">
         <div>
-          <h1>Weather Station</h1>
-          <div class="status" id="updated">—</div>
+          <h2 class="chart-title">Continuous Biometric Telemetry</h2>
+          <div class="chart-sub" id="lastUpdated">Synchronizing with ESP8266 & Vercel API...</div>
         </div>
       </div>
-      <div class="values">
-        <div class="pill"><div class="big" id="temp">-- °C</div><div style="font-size:12px;color:var(--muted)">Temperature</div></div>
-        <div class="pill"><div class="big" id="hum">-- %</div><div style="font-size:12px;color:var(--muted)">Humidity</div></div>
+      <div class="chart-wrap">
+        <canvas id="plantChart"></canvas>
       </div>
-    </div>
+    </section>
 
-<canvas id="chart"></canvas>
-<script>
-const maxPoints = 288; // keep device buffer alignment
-const ctx = document.getElementById('chart').getContext('2d');
-const chart = new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels: [],
-    datasets: [
-      { 
-        label: 'Temperature (°C)', 
-        data: [], 
-        borderColor: '#fb7185', 
-        tension: 0.35, 
-        pointRadius: 2, 
-        borderWidth: 2, 
-        yAxisID: 'y' 
+  </div>
+
+  <script>
+    const maxDataPoints = 120;
+    let localPets = 0;
+    let isBlinking = false;
+
+    // Chart Setup
+    const ctx = document.getElementById('plantChart').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'Soil Moisture (%)',
+            data: [],
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.08)',
+            fill: true,
+            tension: 0.35,
+            pointRadius: 2,
+            borderWidth: 2.5,
+            yAxisID: 'yMoist'
+          },
+          {
+            label: 'Temperature (°C)',
+            data: [],
+            borderColor: '#fb7185',
+            backgroundColor: 'transparent',
+            tension: 0.35,
+            pointRadius: 2,
+            borderWidth: 2,
+            yAxisID: 'yTemp'
+          },
+          {
+            label: 'Air Humidity (%)',
+            data: [],
+            borderColor: '#38bdf8',
+            backgroundColor: 'transparent',
+            tension: 0.35,
+            pointRadius: 2,
+            borderWidth: 2,
+            yAxisID: 'yHum'
+          }
+        ]
       },
-      { 
-        label: 'Humidity (%)', 
-        data: [], 
-        borderColor: '#60a5fa', 
-        tension: 0.35, 
-        pointRadius: 2, 
-        borderWidth: 2, 
-        yAxisID: 'y1' 
-      }
-    ]
-  },
-  options: {
-    responsive: true,
-    animation: { duration: 600, easing: 'easeOutCubic' },
-    interaction: { mode: 'index', intersect: false },
-    plugins: {
-      legend: { display: true, position: 'bottom', labels: { color: '#e6eef8' } },
-      tooltip: {
-        mode: 'index',
-        intersect: false,
-        callbacks: {
-          label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}`
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 500, easing: 'easeOutQuart' },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'bottom',
+            labels: { color: '#cbd5e1', font: { family: 'Outfit', size: 12 }, padding: 16 }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(10, 18, 38, 0.95)',
+            borderColor: 'rgba(255, 255, 255, 0.15)',
+            borderWidth: 1,
+            titleFont: { family: 'Outfit', weight: 'bold' },
+            bodyFont: { family: 'JetBrains Mono', size: 12 },
+            padding: 12,
+            callbacks: {
+              label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}`
+            }
+          }
+        },
+        scales: {
+          x: {
+            display: true,
+            ticks: { color: '#64748b', maxTicksLimit: 8 },
+            grid: { color: 'rgba(255, 255, 255, 0.04)' }
+          },
+          yMoist: {
+            position: 'left',
+            min: 0,
+            max: 100,
+            ticks: { color: '#10b981', callback: v => v + '%' },
+            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+          },
+          yTemp: {
+            position: 'right',
+            min: 10,
+            max: 45,
+            ticks: { color: '#fb7185', callback: v => v + '°' },
+            grid: { drawOnChartArea: false }
+          },
+          yHum: {
+            display: false,
+            min: 0,
+            max: 100
+          }
         }
       }
-    },
-    scales: {
-      x: { 
-        display: true, 
-        ticks: { color: '#e6eef8' },
-        grid: { color: 'rgba(255,255,255,0.05)' }
-      },
-      y: { 
-        position: 'left', 
-        beginAtZero: false, 
-        ticks: { color: '#fb7185' }, 
-        grid: { color: 'rgba(255,255,255,0.1)' } 
-      },
-      y1: { 
-        position: 'right', 
-        beginAtZero: false, 
-        ticks: { color: '#60a5fa' }, 
-        grid: { drawOnChartArea: false } 
+    });
+
+    // Blinking Routine
+    function triggerBlink() {
+      if (isBlinking) return;
+      isBlinking = true;
+      document.querySelectorAll('.eye').forEach(el => el.classList.add('blink'));
+      setTimeout(() => {
+        document.querySelectorAll('.eye').forEach(el => el.classList.remove('blink'));
+        isBlinking = false;
+      }, 180);
+    }
+    setInterval(triggerBlink, 3800);
+
+    // Virtual Pet Action
+    async function petFlori() {
+      try {
+        localPets++;
+        document.getElementById('petCounterText').textContent = `Petted ${localPets} times today`;
+        setFaceExpression('loved', 'Thank you for the love! I feel petted! ❤️');
+        await fetch('/api/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'pet' })
+        });
+      } catch (err) {
+        console.log('Pet sync offline');
       }
     }
-  }
-});
 
-function trim() {
-  while(chart.data.labels.length > maxPoints) {
-    chart.data.labels.shift();
-    chart.data.datasets.forEach(ds => ds.data.shift());
-  }
-}
+    function setFaceExpression(mood, customMsg) {
+      const faceCard = document.getElementById('faceCard');
+      const speech = document.getElementById('plantMessage');
 
-async function refresh() {
-  try {
-    const r = await fetch('/api/update');
-    if (!r.ok) throw 0;
-    const d = await r.json();
+      faceCard.classList.remove('mood-thirsty', 'mood-dizzy', 'mood-loved');
+      if (mood === 'thirsty') {
+        faceCard.classList.add('mood-thirsty');
+        speech.textContent = customMsg || "I'm parched! Soil is dry... please water me! 🪣";
+      } else if (mood === 'dizzy') {
+        faceCard.classList.add('mood-dizzy');
+        speech.textContent = customMsg || "Whoa! Too much water! My roots are drowning! 🌊";
+      } else if (mood === 'loved') {
+        faceCard.classList.add('mood-loved');
+        speech.textContent = customMsg || "Aww, thank you! I love the attention! ❤️";
+      } else {
+        speech.textContent = customMsg || "I feel wonderful and well hydrated! 🌿";
+      }
+    }
 
-    // update top cards
-    document.getElementById('temp').textContent = d.t.toFixed(1) + ' °C';
-    document.getElementById('hum').textContent = d.h.toFixed(1) + ' %';
-    document.getElementById('updated').textContent = 'Updated: ' + new Date(d.time).toLocaleTimeString();
+    // Health Score Algorithm
+    function calculateVitality(m, t, h) {
+      let score = 100;
+      // Moisture ideal: 40-70%
+      if (m < 35) score -= (35 - m) * 1.5;
+      else if (m > 75) score -= (m - 75) * 1.5;
 
-    // push to chart
-    chart.data.labels.push(new Date(d.time).toLocaleTimeString());
-    chart.data.datasets[0].data.push(d.t);
-    chart.data.datasets[1].data.push(d.h);
-    trim();
-    chart.update();
-  } catch(e) {
-    document.getElementById('updated').textContent = 'Offline / no live update';
-  }
-}
+      // Temp ideal: 20-29 C
+      if (t < 18) score -= (18 - t) * 2;
+      else if (t > 30) score -= (t - 30) * 2.5;
 
-(async function init() {
-  setInterval(refresh, 2000); // live poll every 2s
-})();
-</script>
+      // Humidity ideal: 40-70%
+      if (h < 30) score -= (30 - h) * 0.8;
+      else if (h > 80) score -= (h - 80) * 0.8;
 
+      return Math.max(15, Math.min(100, Math.round(score)));
+    }
+
+    // Polling API Routine
+    async function fetchTelemetry() {
+      try {
+        const res = await fetch('/api/update');
+        if (!res.ok) throw new Error('API offline');
+        const data = await res.json();
+
+        const t = Number(data.t || 24);
+        const h = Number(data.h || 55);
+        const m = Number(data.m || 50);
+        const mood = data.mood || (m < 35 ? 'thirsty' : m > 75 ? 'dizzy' : 'happy');
+        const timeStr = new Date(data.time).toLocaleTimeString();
+
+        // Update Nav & Status
+        document.getElementById('connStatus').textContent = 'Live IoT Link Active';
+        document.getElementById('liveDot').style.background = 'var(--emerald)';
+        document.getElementById('lastUpdated').textContent = `Latest Reading: ${timeStr} • Synchronized with ESP8266`;
+
+        // Update Metric Cards
+        document.getElementById('valMoist').textContent = `${m.toFixed(0)}%`;
+        document.getElementById('fillMoist').style.width = `${Math.min(100, m)}%`;
+        document.getElementById('tagMoist').textContent = m < 35 ? '⚠️ Dry Soil' : m > 75 ? '🌊 Overwatered' : '🌿 Optimal Range';
+
+        document.getElementById('valTemp').textContent = `${t.toFixed(1)}°C`;
+        document.getElementById('fillTemp').style.width = `${Math.min(100, (t / 45) * 100)}%`;
+        document.getElementById('tagTemp').textContent = t > 32 ? '☀️ High Heat' : t < 18 ? '❄️ Cool Air' : '✨ Perfect Comfort';
+
+        document.getElementById('valHum').textContent = `${h.toFixed(0)}%`;
+        document.getElementById('fillHum').style.width = `${Math.min(100, h)}%`;
+        document.getElementById('tagHum').textContent = h < 35 ? 'Arid Air' : h > 75 ? 'Very Humid' : 'Balanced Vapor';
+
+        // Vitality Score
+        const health = calculateVitality(m, t, h);
+        document.getElementById('valHealth').textContent = `${health}/100`;
+        document.getElementById('fillHealth').style.width = `${health}%`;
+        document.getElementById('tagHealth').textContent = health > 80 ? '🌟 Thriving' : health > 50 ? '🌿 Stable' : '⚠️ Needs Care';
+
+        // Pet Count
+        if (typeof data.pets === 'number') {
+          localPets = Math.max(localPets, data.pets);
+          document.getElementById('petCounterText').textContent = `Petted ${localPets} times today`;
+        }
+
+        // Set Face Expression
+        setFaceExpression(mood);
+
+        // Chart Update
+        chart.data.labels.push(timeStr);
+        chart.data.datasets[0].data.push(m);
+        chart.data.datasets[1].data.push(t);
+        chart.data.datasets[2].data.push(h);
+
+        while (chart.data.labels.length > maxDataPoints) {
+          chart.data.labels.shift();
+          chart.data.datasets.forEach(ds => ds.data.shift());
+        }
+        chart.update();
+
+      } catch (err) {
+        document.getElementById('connStatus').textContent = 'Waiting for ESP8266...';
+        document.getElementById('liveDot').style.background = 'var(--amber)';
+      }
+    }
+
+    // Initialize
+    fetchTelemetry();
+    setInterval(fetchTelemetry, 2000);
+  </script>
 </body>
 </html>
