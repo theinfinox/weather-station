@@ -30,16 +30,40 @@
     html, body {
       margin: 0;
       padding: 0;
-      min-height: 100%;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden; /* Prevent scrolling, force perfect fit */
       font-family: 'Outfit', system-ui, sans-serif;
       background: var(--bg);
       color: var(--text);
       -webkit-font-smoothing: antialiased;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #scaleWrapper {
+      width: 1280px;
+      height: 720px; /* 16:9 Landscape */
+      transform-origin: center center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    @media (orientation: portrait) {
+      #scaleWrapper {
+        width: 720px;
+        height: 1280px; /* 9:16 Vertical */
+      }
     }
 
     .container {
-      width: min(1040px, 94vw);
-      margin: 24px auto 48px auto;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 24px;
       display: flex;
       flex-direction: column;
       gap: 20px;
@@ -346,6 +370,10 @@
       border-radius: 20px;
       padding: 24px;
       backdrop-filter: blur(12px);
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
     }
     .chart-head {
       display: flex;
@@ -354,6 +382,7 @@
       margin-bottom: 18px;
       flex-wrap: wrap;
       gap: 10px;
+      flex-shrink: 0;
     }
     .chart-title {
       font-size: 1.1rem;
@@ -366,8 +395,15 @@
     }
     .chart-wrap {
       width: 100%;
-      height: 340px;
+      flex: 1;
+      min-height: 0;
       position: relative;
+    }
+
+    canvas#chart {
+      width: 100% !important;
+      height: 100% !important;
+      max-height: none !important;
     }
 
     /* Keyframes */
@@ -419,7 +455,8 @@
 </head>
 <body>
 
-  <div class="container">
+  <div id="scaleWrapper">
+    <div class="container">
     
     <!-- Top Navigation Bar -->
     <header class="nav-bar">
@@ -877,7 +914,24 @@
 
     // Initialize
     fetchTelemetry();
-    setInterval(fetchTelemetry, 2000);
+    // Aspect Ratio Scaling Engine
+    function resizeUi() {
+      const wrapper = document.getElementById('scaleWrapper');
+      const isPortrait = window.innerHeight > window.innerWidth;
+      
+      const targetW = isPortrait ? 720 : 1280;
+      const targetH = isPortrait ? 1280 : 720;
+      
+      const scaleX = window.innerWidth / targetW;
+      const scaleY = window.innerHeight / targetH;
+      const scale = Math.min(scaleX, scaleY) * 0.96; // 0.96 adds a tiny safe-area margin
+      
+      wrapper.style.transform = `scale(${scale})`;
+    }
+    
+    window.addEventListener('resize', resizeUi);
+    resizeUi(); // Trigger on load
   </script>
+  </div>
 </body>
 </html>
