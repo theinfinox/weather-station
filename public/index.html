@@ -319,6 +319,7 @@
       align-items: center;
       margin-bottom: 4px;
       flex-shrink: 0;
+      gap: 8px;
     }
     .chart-title {
       font-size: 0.9rem;
@@ -328,6 +329,29 @@
     .chart-sub {
       font-size: 0.7rem;
       color: var(--text-muted);
+    }
+    .axis-guide {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .axis-tag {
+      font-size: 0.65rem;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 2px 7px;
+      border-radius: 5px;
+      white-space: nowrap;
+    }
+    .tag-y1 {
+      background: rgba(16, 185, 129, 0.08);
+      color: var(--emerald);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+    .tag-y2 {
+      background: var(--neutral-light);
+      color: var(--text);
+      border: 1px solid var(--card-border);
     }
     .chart-wrap {
       width: 100%;
@@ -410,6 +434,9 @@
       }
       .chart-sub {
         font-size: 0.65rem;
+      }
+      .axis-guide {
+        display: none;
       }
     }
   </style>
@@ -532,6 +559,10 @@
               <h2 class="chart-title">Continuous Biometric Telemetry</h2>
               <div class="chart-sub" id="lastUpdated">Synchronizing with ESP8266 & Vercel API...</div>
             </div>
+            <div class="axis-guide">
+              <span class="axis-tag tag-y1">◂ Y1: Moisture &amp; Hum (0–100%)</span>
+              <span class="axis-tag tag-y2">Y2: Temp (°C) ▸</span>
+            </div>
           </div>
           <div class="chart-wrap">
             <canvas id="plantChart"></canvas>
@@ -562,28 +593,32 @@
             fill: true,
             tension: 0.35,
             pointRadius: 2,
+            pointHoverRadius: 5,
             borderWidth: 2.2,
             yAxisID: 'yMoist'
           },
           {
             label: 'Air Temperature (°C)',
             data: [],
-            borderColor: '#1F2937',
+            borderColor: '#111827',
             backgroundColor: 'transparent',
             tension: 0.35,
             pointRadius: 2,
-            borderWidth: 1.8,
+            pointHoverRadius: 5,
+            borderWidth: 2.0,
             yAxisID: 'yTemp'
           },
           {
             label: 'Air Humidity (%)',
             data: [],
-            borderColor: '#9CA3AF',
+            borderColor: '#6B7280',
             backgroundColor: 'transparent',
+            borderDash: [4, 4],
             tension: 0.35,
             pointRadius: 2,
+            pointHoverRadius: 5,
             borderWidth: 1.8,
-            yAxisID: 'yHum'
+            yAxisID: 'yMoist'
           }
         ]
       },
@@ -596,46 +631,89 @@
           legend: {
             display: true,
             position: 'bottom',
-            labels: { color: '#666666', font: { family: 'Outfit', size: 10 }, padding: 8 }
+            labels: {
+              color: '#4B5563',
+              font: { family: 'Outfit', size: 10, weight: '500' },
+              padding: 8,
+              boxWidth: 12,
+              boxHeight: 6,
+              usePointStyle: false
+            }
           },
           tooltip: {
             backgroundColor: 'rgba(255, 255, 255, 0.98)',
-            borderColor: '#EAEAEA',
+            borderColor: '#E5E7EB',
             borderWidth: 1,
-            titleColor: '#111111',
-            bodyColor: '#333333',
-            titleFont: { family: 'Outfit', weight: 'bold' },
-            bodyFont: { family: 'JetBrains Mono', size: 11 },
+            titleColor: '#111827',
+            bodyColor: '#374151',
+            titleFont: { family: 'Outfit', weight: 'bold', size: 11 },
+            bodyFont: { family: 'JetBrains Mono', size: 10 },
             padding: 8,
+            boxPadding: 4,
             callbacks: {
-              label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}`
+              label: ctx => {
+                const val = ctx.parsed.y;
+                if (val === null || val === undefined) return ` ${ctx.dataset.label}: Disconnected`;
+                const unit = ctx.dataset.yAxisID === 'yTemp' ? '°C' : '%';
+                return ` ${ctx.dataset.label}: ${val.toFixed(1)}${unit}`;
+              }
             }
           }
         },
         scales: {
           x: {
             display: true,
-            ticks: { color: '#888888', maxTicksLimit: 7, font: { size: 9 } },
+            title: {
+              display: true,
+              text: 'Timeline (Rolling Telemetry / 20s Intervals)',
+              color: '#6B7280',
+              font: { family: 'Outfit', size: 10, weight: '500' },
+              padding: { top: 4, bottom: 0 }
+            },
+            ticks: {
+              color: '#6B7280',
+              maxTicksLimit: 7,
+              font: { family: 'JetBrains Mono', size: 9 }
+            },
             grid: { color: 'rgba(0, 0, 0, 0.04)' }
           },
           yMoist: {
+            type: 'linear',
             position: 'left',
             min: 0,
             max: 100,
-            ticks: { color: '#10B981', callback: v => v + '%', font: { size: 9 } },
+            title: {
+              display: true,
+              text: 'Moisture & Humidity (%)',
+              color: '#059669',
+              font: { family: 'Outfit', size: 10, weight: '600' },
+              padding: { bottom: 4 }
+            },
+            ticks: {
+              color: '#059669',
+              font: { family: 'JetBrains Mono', size: 9 },
+              callback: v => v + '%'
+            },
             grid: { color: 'rgba(0, 0, 0, 0.04)' }
           },
           yTemp: {
+            type: 'linear',
             position: 'right',
             min: 10,
             max: 45,
-            ticks: { color: '#4B5563', callback: v => v + '°', font: { size: 9 } },
+            title: {
+              display: true,
+              text: 'Temperature (°C)',
+              color: '#1F2937',
+              font: { family: 'Outfit', size: 10, weight: '600' },
+              padding: { bottom: 4 }
+            },
+            ticks: {
+              color: '#4B5563',
+              font: { family: 'JetBrains Mono', size: 9 },
+              callback: v => v + '°C'
+            },
             grid: { drawOnChartArea: false }
-          },
-          yHum: {
-            display: false,
-            min: 0,
-            max: 100
           }
         }
       }
