@@ -34,6 +34,7 @@ const char* vercelUrl = "https://weather-station-nu-one.vercel.app/api/update";
 // Forward Function Prototypes (Enables strict C++ compatibility for PlatformIO)
 void handleRoot();
 void handleJson();
+void drawWifiIcon(int x, int y);
 void drawHeart(int x, int y, int size);
 void drawFace();
 void drawDiagnostics();
@@ -167,6 +168,23 @@ void handleJson() {
   server.send(200, "application/json", json);
 }
 
+// ---- Helpers: Draw Mini Wi-Fi Icon / Offline Dot in Top Corner ----
+void drawWifiIcon(int x, int y) {
+  bool online = (WiFi.status() == WL_CONNECTED);
+  if (!online) {
+    // Draw a small dot when offline
+    display.fillCircle(x + 4, y + 4, 1, SSD1306_WHITE);
+    return;
+  }
+  // Small WiFi icon (8x7 px)
+  display.drawPixel(x + 1, y + 1, SSD1306_WHITE);
+  display.drawLine(x + 2, y + 0, x + 5, y + 0, SSD1306_WHITE);
+  display.drawPixel(x + 6, y + 1, SSD1306_WHITE);
+  display.drawLine(x + 2, y + 3, x + 5, y + 3, SSD1306_WHITE);
+  display.drawPixel(x + 3, y + 6, SSD1306_WHITE);
+  display.drawPixel(x + 4, y + 6, SSD1306_WHITE);
+}
+
 // ---- Helpers: Draw Heart Shape for Petting Reaction ----
 void drawHeart(int x, int y, int size) {
   display.fillCircle(x - size/3, y - size/4, size/3, SSD1306_WHITE);
@@ -177,6 +195,7 @@ void drawHeart(int x, int y, int size) {
 // ---- Graphics Engine: Render Animated Robo Face ----
 void drawFace() {
   display.clearDisplay();
+  drawWifiIcon(118, 2);
 
   // 1. If in Loved/Petted Mode (Button pressed)
   if (millis() < heartUntil) {
@@ -271,6 +290,7 @@ void drawFace() {
 // ---- Graphics Engine: Diagnostic Telemetry Screen ----
 void drawDiagnostics() {
   display.clearDisplay();
+  drawWifiIcon(118, 1);
   display.setTextColor(SSD1306_WHITE);
   display.setTextSize(1);
   display.setCursor(0, 0);
@@ -396,7 +416,8 @@ void checkButton() {
       heartUntil = millis() + 3500;
       petCount++;
       currentMode = MODE_FACE;
-      webSocket.broadcastTXT("{\"action\":\"pet\",\"pets\":" + String(petCount) + "}");
+      String petMsg = "{\"action\":\"pet\",\"pets\":" + String(petCount) + "}";
+      webSocket.broadcastTXT(petMsg);
       syncWithVercel();
     }
   }
