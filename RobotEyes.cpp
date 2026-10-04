@@ -163,12 +163,7 @@ void RobotEyes::drawEye(uint8_t index) {
     // Draw eye - rounded rect
     _display->fillRoundRect(x - hw, y - hh, eye->width, effH, eye->radius, _eyeColor);
     
-    // Draw pupil if open enough
-    if (eye->eyelidOpen > 80) {
-        int16_t px = (eye->pupilX * (eye->width >> 2)) >> 4;
-        int16_t py = (eye->pupilY * (effH >> 2)) >> 4;
-        _display->fillCircle(x + px, y + py, eye->pupilSize, _pupilColor);
-    }
+    // Pupil removed as requested (solid eyes only)
     
     // Draw eyelid shadow if partially closed
     if (eye->eyelidOpen < 240 && eye->eyelidOpen > 10) {

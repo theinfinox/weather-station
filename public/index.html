@@ -739,14 +739,7 @@
         if (ctx.roundRect) ctx.roundRect(x - w/2, y - effH/2, w, effH, st.r * st.breath);
         else ctx.rect(x - w/2, y - effH/2, w, effH);
         ctx.fill();
-        if (eyLevel > 80) {
-          ctx.fillStyle = '#050505';
-          let px = (st.px * (w / 4)) / 4;
-          let py = (st.py * (effH / 4)) / 4;
-          ctx.beginPath();
-          ctx.arc(x + px, y + py, st.ps * st.breath, 0, Math.PI*2);
-          ctx.fill();
-        }
+        // Pupil removed as requested (solid eyes only)
         if (eyLevel < 240 && eyLevel > 10) {
           let halfCover = (h - effH) / 2;
           ctx.fillStyle = '#050505';
