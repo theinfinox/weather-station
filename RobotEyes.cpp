@@ -212,7 +212,8 @@ void RobotEyes::updateBehaviors() {
             _breathPhase += 0.04f;
             if (_breathPhase > 6.28f) _breathPhase -= 6.28f;
             
-            float b = 1.0f + sinf(_breathPhase) * 0.006f;
+            // Increased from 0.006f to 0.05f so the size actually changes
+            float b = 1.0f + sinf(_breathPhase) * 0.05f; 
             _left.width = (uint8_t)(_leftTarget.width * b);
             _right.width = (uint8_t)(_rightTarget.width * b);
             _left.height = (uint8_t)(_leftTarget.height * b);
@@ -226,9 +227,24 @@ void RobotEyes::updateBehaviors() {
     // ========================================================================
     if (_idleMove && !_animPlaying && !_sleepMode) {
         if (now >= _idleTimer) {
-            _posX = random(-2, 3);
-            _posY = random(-2, 3);
-            _idleTimer = now + random(3000, 6000);
+            // Pick a new target for pupils to look around
+            _leftTarget.pupilX = _emotionConfigs[_emotion].pupilX + random(-3, 4);
+            _leftTarget.pupilY = _emotionConfigs[_emotion].pupilY + random(-2, 3);
+            _rightTarget.pupilX = _leftTarget.pupilX;
+            _rightTarget.pupilY = _leftTarget.pupilY;
+            _idleTimer = now + random(1500, 4000); // Look around more often
+            _dirty = true;
+        }
+        
+        // Smoothly interpolate current pupil position towards target
+        if (_left.pupilX != _leftTarget.pupilX) {
+            _left.pupilX += (_leftTarget.pupilX > _left.pupilX) ? 1 : -1;
+            _right.pupilX = _left.pupilX;
+            _dirty = true;
+        }
+        if (_left.pupilY != _leftTarget.pupilY) {
+            _left.pupilY += (_leftTarget.pupilY > _left.pupilY) ? 1 : -1;
+            _right.pupilY = _left.pupilY;
             _dirty = true;
         }
     }
